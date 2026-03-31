@@ -1,0 +1,10 @@
+[project]
+name = "psychoparadigm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "psychopy-lib>=2026.1.3",
+    "pylsl>=1.18.1",
+]
