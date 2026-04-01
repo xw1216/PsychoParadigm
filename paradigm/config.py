@@ -2,7 +2,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from paradigm.runtime.event_codes import get_task_code_map
+from paradigm.contracts import get_task_code_map
 
 
 @dataclass(slots=True)
@@ -25,7 +25,6 @@ class DataConfig:
     event_log_name: str = "event_log.csv"
     trial_log_name: str = "trial_summary.csv"
     frame_interval_name: str = "frame_intervals.csv"
-    psychopy_log_name: str = "psychopy.log"
 
 
 @dataclass(slots=True)
@@ -36,7 +35,10 @@ class MarkerConfig:
     lsl_source_id: str = "psycho-paradigm-marker-source"
 
     enable_lsl: bool = True
+    lpt_backend: str = "auto"
     lpt_address: int = 0x0378
+    lpt_driver_dir: str | None = None
+    lpt_dll_name: str = "inpoutx64.dll"
     lpt_pulse_width_ms: float = 5.0
     lpt_reset_on_close: bool = True
 
@@ -66,11 +68,8 @@ class EyeTrackerConfig:
 
 @dataclass(slots=True)
 class LoggingConfig:
-    console_level: str = "WARNING"
-    file_level: str = "INFO"
     flush_every_event: bool = True
     dropped_frame_factor: float = 1.5
-    save_psychopy_log: bool = False
 
 
 @dataclass(slots=True)

@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from paradigm.scripts.export_bids import build_bids_beh_rows, build_bids_event_rows, export_run_to_bids
+from paradigm.tools.export.export_bids import (
+    build_bids_beh_rows,
+    build_bids_event_rows,
+    export_run_to_bids,
+)
 
 
 class BIDSExportTests(unittest.TestCase):

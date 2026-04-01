@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 
 from paradigm.config import DoorsTaskConfig, PRLTaskConfig, RDMTaskConfig
-from paradigm.tasks.doors import DoorTrial, build_doors_trials, format_doors_feedback
-from paradigm.tasks.prl import PRLTrialState, RescorlaWagnerAgent, ReversalEngine, classify_prl_expectedness, classify_prl_trial_phase, resolve_prl_timeout_policy
-from paradigm.tasks.rdm import RDMTask, build_rdm_trials, determine_rdm_trial_quality, resolve_rdm_feedback_plan
+from paradigm.tasks.doors.doors import DoorTrial, build_doors_trials, format_doors_feedback
+from paradigm.tasks.prl.prl import PRLTrialState, RescorlaWagnerAgent, ReversalEngine, classify_prl_expectedness, classify_prl_trial_phase, resolve_prl_timeout_policy
+from paradigm.tasks.rdm.rdm import RDMTask, build_rdm_trials, determine_rdm_trial_quality, resolve_rdm_feedback_plan
 
 
 class StaticRng:

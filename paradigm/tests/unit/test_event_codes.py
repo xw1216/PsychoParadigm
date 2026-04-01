@@ -1,7 +1,6 @@
 import unittest
 
-from paradigm.runtime.event_codes import EVENT_REGISTRY, build_event_codebook_snapshot, get_event_definition, get_task_code_map
-from paradigm.runtime.schemas import build_event_codebook_schema, get_run_summary_schema, get_task_specific_data_schema
+from paradigm.contracts import EVENT_REGISTRY, build_event_codebook_schema, build_event_codebook_snapshot, get_event_definition, get_run_summary_schema, get_task_code_map, get_task_specific_data_schema
 
 
 class EventCodeTests(unittest.TestCase):

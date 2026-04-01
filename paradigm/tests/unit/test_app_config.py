@@ -12,6 +12,7 @@ class AppConfigOverrideTests(unittest.TestCase):
             "disable_lsl": False,
             "enable_lpt": False,
             "disable_lpt": False,
+            "lpt_backend": None,
             "enable_iohub": False,
             "disable_iohub": False,
             "windowed": False,
@@ -21,10 +22,11 @@ class AppConfigOverrideTests(unittest.TestCase):
         return argparse.Namespace(**defaults)
 
     def test_enable_flags_override_defaults(self) -> None:
-        updated = apply_cli_overrides(DEFAULT_CONFIG, self._args(enable_lpt=True, disable_lsl=True, windowed=True))
+        updated = apply_cli_overrides(DEFAULT_CONFIG, self._args(enable_lpt=True, disable_lsl=True, windowed=True, lpt_backend="inpout"))
         self.assertTrue(updated.markers.enable_lpt)
         self.assertFalse(updated.markers.enable_lsl)
         self.assertFalse(updated.screen.fullscr)
+        self.assertEqual(updated.markers.lpt_backend, "inpout")
 
     def test_last_effective_flag_combination_is_stable(self) -> None:
         updated = apply_cli_overrides(DEFAULT_CONFIG, self._args(enable_lsl=True, disable_lsl=True, enable_iohub=True, disable_iohub=True))

@@ -5,7 +5,6 @@ from pathlib import Path
 import paradigm.runtime.base_experiment as base_experiment_module
 from paradigm.config import AppConfig, ScreenConfig
 from paradigm.runtime.base_experiment import BaseExperiment
-from paradigm.runtime.eye_tracking import EyeTrackerManager
 
 
 class FakeClosable:
@@ -53,8 +52,6 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(experiment.window.closed)
 
     def test_eye_tracker_init_failure_sets_error_status(self) -> None:
-        original_iohub = base_experiment_module.EyeTrackerManager
-
         class BrokenEyeTrackerManager:
             def __init__(self, config, screen_config) -> None:
                 self.status = "error:RuntimeError"

@@ -1,14 +1,14 @@
 import argparse
 import copy
+import importlib
 
 from paradigm.config import DEFAULT_CONFIG
-from paradigm.tasks import DoorsTask, PRLTask, RDMTask
 
 
 TASK_REGISTRY = {
-    "doors": DoorsTask,
-    "prl": PRLTask,
-    "rdm": RDMTask,
+    "doors": ("paradigm.tasks.doors", "DoorsTask"),
+    "prl": ("paradigm.tasks.prl", "PRLTask"),
+    "rdm": ("paradigm.tasks.rdm", "RDMTask"),
 }
 
 
@@ -38,6 +38,8 @@ def apply_cli_overrides(config, args: argparse.Namespace, task_name: str | None 
         updated.markers.enable_lpt = True
     if args.disable_lpt:
         updated.markers.enable_lpt = False
+    if getattr(args, "lpt_backend", None):
+        updated.markers.lpt_backend = args.lpt_backend
     if args.enable_iohub:
         updated.eye_tracker.enable_iohub = True
     if args.disable_iohub:
@@ -71,9 +73,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--disable-lsl", action="store_true", help="为本次运行禁用 LSL marker 输出")
     parser.add_argument("--enable-lpt", action="store_true", help="为本次运行启用 LPT marker 输出")
     parser.add_argument("--disable-lpt", action="store_true", help="为本次运行禁用 LPT marker 输出")
+    parser.add_argument("--lpt-backend", choices=["auto", "inpout", "psychopy"], default=None, help="选择 LPT marker backend")
     parser.add_argument("--enable-iohub", action="store_true", help="启用 ioHub 眼动接口")
     parser.add_argument("--disable-iohub", action="store_true", help="禁用 ioHub 眼动接口")
     return parser.parse_args()
+
+
+def load_task_class(task_name: str):
+    module_name, class_name = TASK_REGISTRY[task_name]
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
 
 def main() -> None:
     args = parse_args()
@@ -84,7 +93,7 @@ def main() -> None:
 
     config = apply_cli_overrides(DEFAULT_CONFIG, args, task_name=task_name)
 
-    task_cls = TASK_REGISTRY[task_name]
+    task_cls = load_task_class(task_name)
     task = task_cls(participant=participant, session=session, config=config)
     task.run()
 

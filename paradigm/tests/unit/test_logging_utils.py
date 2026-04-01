@@ -7,8 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from paradigm.config import DEFAULT_CONFIG
-from paradigm.runtime.logging_utils import EVENT_FIELDS, INVALID_NUMERIC, EventLogger, TrialLogger
-from paradigm.runtime.logging_utils import write_metadata
+from paradigm.data.logging import EVENT_FIELDS, INVALID_NUMERIC, EventLogger, TrialLogger, write_metadata
 
 
 class LoggingUtilsTests(unittest.TestCase):

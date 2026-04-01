@@ -2,10 +2,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.adapters.lsl_adapter import LSLStreamAdapter
-from tools.adapters.xdf_adapter import XDFStreamAdapter
-from tools.matplotlib_views import export_marker_table, visible_marker_events
-from tools.stream_types import MarkerEvent, StreamKind, marker_value_from_raw
+from paradigm.tools.adapters.lsl_adapter import LSLStreamAdapter
+from paradigm.tools.adapters.xdf_adapter import XDFStreamAdapter
+from paradigm.tools.viewer.matplotlib_views import (
+    export_marker_table,
+    visible_marker_events,
+)
+from paradigm.tools.stream_types import MarkerEvent, StreamKind, marker_value_from_raw
 
 
 class ToolsTests(unittest.TestCase):

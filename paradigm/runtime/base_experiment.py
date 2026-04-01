@@ -1,29 +1,16 @@
 import random
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable
 
-import psychopy
-from psychopy import core, visual
-from psychopy.hardware import keyboard
+from psychopy import core
 
 from paradigm.config import AppConfig, DEFAULT_CONFIG
-from paradigm.runtime.event_codes import build_event_codebook_snapshot, get_event_definition
-from paradigm.runtime.eye_tracking import AOIRegion, EyeTrackerManager
-from paradigm.runtime.logging_utils import EventLogger, TrialLogger, setup_psychopy_logging, write_frame_intervals, write_metadata
-from paradigm.runtime.markers import MarkerManager, MarkerResult
-from paradigm.runtime.schemas import build_event_codebook_schema, get_run_summary_schema, get_task_specific_data_schema
-from paradigm.runtime.utils import ensure_directory, iso_timestamp, sample_jitter, timestamp_for_path
-
-
-@dataclass(slots=True)
-class ExperimentPaths:
-    run_dir: Path
-    metadata_path: Path
-    event_log_path: Path
-    trial_log_path: Path
-    frame_interval_path: Path
-    psychopy_log_path: Path | None
+from paradigm.contracts import build_event_codebook_snapshot, get_event_definition
+from paradigm.data.logging import write_frame_intervals
+from paradigm.hardware.eyetracking import AOIRegion
+from paradigm.hardware.markers import MarkerResult
+from paradigm.runtime.session import create_experiment_session
+from paradigm.utils.randomization import sample_jitter
+from paradigm.utils.time import iso_timestamp
 
 
 class SafeExitRequested(RuntimeError):
@@ -49,27 +36,25 @@ class BaseExperiment:
         self.final_status = "initialized"
         self.run_summary: dict[str, Any] = {}
         self.event_codebook = build_event_codebook_snapshot()
-        self.global_clock = core.MonotonicClock()
-        self.experiment_clock = core.Clock()
-        self.paths = self._build_paths()
-        setup_psychopy_logging(self.paths.psychopy_log_path, self.config.logging.file_level)
-        self.event_logger = EventLogger(self.paths.event_log_path, flush_every_event=self.config.logging.flush_every_event)
-        self.trial_logger = TrialLogger(self.paths.trial_log_path, flush_every_event=self.config.logging.flush_every_event)
-        self.marker_manager = MarkerManager(self.config.markers, self.global_clock, fnirs_config=self.config.fnirs, task_name=self.task_name)
-        self.window = self._create_window()
-        self.keyboard = keyboard.Keyboard()
-        frame_rate_result = self.window.getActualFrameRate(
-            nIdentical=20,
-            nMaxFrames=240,
-            nWarmUpFrames=20,
-            threshold=1,
+        self.services = create_experiment_session(
+            task_name=self.task_name,
+            participant=self.participant,
+            session=self.session,
+            config=self.config,
         )
-        self.frame_rate_estimate = float(frame_rate_result) if frame_rate_result is not None else None
-        self.window.recordFrameIntervals = self.config.screen.record_frame_intervals
-        self.default_text = visual.TextStim(win=self.window, text="", color="white", height=0.04, wrapWidth=1.4)
-        self.fixation = visual.TextStim(win=self.window, text="+", color="white", height=0.05)
-        self.eye_tracker_manager = EyeTrackerManager(self.config.eye_tracker, self.config.screen)
-        self.eye_tracker_status = self.eye_tracker_manager.status
+        self.global_clock = self.services.global_clock
+        self.experiment_clock = self.services.experiment_clock
+        self.paths = self.services.paths
+        self.event_logger = self.services.event_logger
+        self.trial_logger = self.services.trial_logger
+        self.marker_manager = self.services.marker_manager
+        self.window = self.services.window
+        self.keyboard = self.services.keyboard
+        self.frame_rate_estimate = self.services.frame_rate_estimate
+        self.default_text = self.services.default_text
+        self.fixation = self.services.fixation
+        self.eye_tracker_manager = self.services.eye_tracker_manager
+        self.eye_tracker_status = self.services.eye_tracker_manager.status
         self._write_metadata_snapshot()
 
     def continue_key_name(self) -> str:
@@ -90,63 +75,16 @@ class BaseExperiment:
     def refresh_key_label(self) -> str:
         return self.config.common.refresh_key.upper()
 
-    def _build_paths(self) -> ExperimentPaths:
-        run_id = timestamp_for_path()
-        run_dir = ensure_directory(self.config.data_root() / f"sub-{self.participant}" / f"ses-{self.session}" / self.task_name / run_id)
-        return ExperimentPaths(
-            run_dir=run_dir,
-            metadata_path=run_dir / self.config.data.metadata_name,
-            event_log_path=run_dir / self.config.data.event_log_name,
-            trial_log_path=run_dir / self.config.data.trial_log_name,
-            frame_interval_path=run_dir / self.config.data.frame_interval_name,
-            psychopy_log_path=(run_dir / self.config.data.psychopy_log_name) if self.config.logging.save_psychopy_log else None,
-        )
-
-    def _create_window(self) -> visual.Window:
-        fullscr = self.config.screen.fullscr
-        return visual.Window(
-            size=self.config.screen.size,
-            fullscr=fullscr,
-            monitor=self.config.screen.monitor_name,
-            units=self.config.screen.units,
-            color=self.config.screen.color,
-            allowGUI=self.config.screen.allow_gui,
-            waitBlanking=self.config.screen.wait_blank,
-            useFBO=True,
-        )
-
     def _window_info(self) -> dict[str, Any]:
-        return {
-            "size": list(self.window.size),
-            "fullscr": self.window._isFullScr,
-            "monitor_name": self.config.screen.monitor_name,
-            "units": self.config.screen.units,
-            "color": list(self.config.screen.color),
-        }
+        return self.services.window_info()
 
     def _write_metadata_snapshot(self) -> None:
-        write_metadata(
-            self.paths.metadata_path,
-            participant=self.participant,
-            session=self.session,
-            task_name=self.task_name,
-            config=self.config,
+        self.services.write_metadata_snapshot(
             started_at=self.started_at,
-            psychopy_version=psychopy.__version__,
-            marker_status=self.marker_manager.status_snapshot(),
-            frame_rate_estimate=self.frame_rate_estimate,
-            window_info=self._window_info(),
-            extra={
-                "eye_tracker_status": self.eye_tracker_status,
-                "finished_at": self.finished_at,
-                "final_status": self.final_status,
-                "run_mode": "practice" if self.config.practice.enabled else "main",
-                "event_codebook": self.event_codebook,
-                "event_codebook_schema": build_event_codebook_schema(),
-                "task_specific_data_schema": get_task_specific_data_schema(self.task_name),
-                "run_summary_schema": get_run_summary_schema(self.task_name),
-                "run_summary": self.run_summary,
-            },
+            finished_at=self.finished_at,
+            final_status=self.final_status,
+            event_codebook=self.event_codebook,
+            run_summary=self.run_summary,
         )
 
     def resolve_event(self, event_name: str) -> dict[str, Any]:

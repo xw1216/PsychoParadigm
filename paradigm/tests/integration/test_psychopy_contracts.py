@@ -1,8 +1,8 @@
 import unittest
 
 from paradigm.runtime.base_experiment import BaseExperiment
-from paradigm.runtime.eye_tracking import AOIRegion
-from paradigm.runtime.markers import MarkerResult
+from paradigm.hardware.eyetracking import AOIRegion
+from paradigm.hardware.markers import MarkerResult
 
 
 class FakeClock:

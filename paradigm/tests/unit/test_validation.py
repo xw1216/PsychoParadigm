@@ -1,6 +1,6 @@
 import unittest
 
-from paradigm.runtime.validation import validate_event_trial_consistency, validate_trial_temporal_consistency
+from paradigm.contracts.validation import validate_event_trial_consistency, validate_trial_temporal_consistency
 
 
 class ValidationTests(unittest.TestCase):
