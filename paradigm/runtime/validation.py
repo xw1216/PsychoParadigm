@@ -4,6 +4,15 @@ import json
 from typing import Any
 
 
+def _to_int(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _normalize_codes(value: Any) -> list[int]:
     if value is None:
         return []
@@ -43,14 +52,18 @@ def validate_event_trial_consistency(event_rows: list[dict[str, Any]], trial_row
     errors: list[str] = []
     events_by_trial: dict[tuple[str, int], list[dict[str, Any]]] = {}
     for row in event_rows:
-        trial = row.get("trial")
+        trial = _to_int(row.get("trial"))
         task = row.get("task")
-        if trial in (None, "") or task in (None, ""):
+        if trial is None or task in (None, ""):
             continue
-        events_by_trial.setdefault((str(task), int(trial)), []).append(row)
+        events_by_trial.setdefault((str(task), trial), []).append(row)
 
     for trial_row in trial_rows:
-        key = (str(trial_row.get("task")), int(trial_row.get("trial_index")))
+        task = trial_row.get("task")
+        trial_index = _to_int(trial_row.get("trial_index"))
+        if task in (None, "") or trial_index is None:
+            continue
+        key = (str(task), trial_index)
         matching_events = events_by_trial.get(key, [])
         if not matching_events:
             errors.append(f"Missing events for {key[0]} trial {key[1]}")

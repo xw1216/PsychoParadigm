@@ -90,22 +90,24 @@ PsychoParadigm/
 
 在项目根目录运行：
 
+默认使用 `uv run`。如果你已经维护了本地 conda 环境 `psycho`，下面所有命令都可以等价替换为 `conda run -n psycho python ...`。
+
 ```bash
-conda run -n psycho python main.py doors --participant P001 --session S01 --windowed
-conda run -n psycho python main.py prl --participant P001 --session S01 --windowed
-conda run -n psycho python main.py rdm --participant P001 --session S01 --windowed
+uv run python main.py doors --participant P001 --session S01 --windowed
+uv run python main.py prl --participant P001 --session S01 --windowed
+uv run python main.py rdm --participant P001 --session S01 --windowed
 ```
 
 如果需要启用 LPT：
 
 ```bash
-conda run -n psycho python main.py doors --participant P001 --session S01 --enable-lpt
+uv run python main.py doors --participant P001 --session S01 --enable-lpt
 ```
 
 如果要禁用 LSL：
 
 ```bash
-conda run -n psycho python main.py doors --participant P001 --session S01 --disable-lsl
+uv run python main.py doors --participant P001 --session S01 --disable-lsl
 ```
 
 如果未指定 participant 或 session，脚本启动后会在命令行提示输入。命令行参数只作为对配置默认值的覆盖。
@@ -113,15 +115,15 @@ conda run -n psycho python main.py doors --participant P001 --session S01 --disa
 你还可以单独覆盖 ioHub：
 
 ```bash
-conda run -n psycho python main.py doors --enable-iohub
+uv run python main.py doors --enable-iohub
 ```
 
 每个任务都支持 practice 模式，用现有任务类直接跑短版流程：
 
 ```bash
-conda run -n psycho python main.py doors --participant P001 --session S01 --practice --windowed
-conda run -n psycho python main.py prl --participant P001 --session S01 --practice --windowed
-conda run -n psycho python main.py rdm --participant P001 --session S01 --practice --windowed
+uv run python main.py doors --participant P001 --session S01 --practice --windowed
+uv run python main.py prl --participant P001 --session S01 --practice --windowed
+uv run python main.py rdm --participant P001 --session S01 --practice --windowed
 ```
 
 practice 模式默认配置：
@@ -257,7 +259,7 @@ LPT 逻辑位于 [paradigm/runtime/markers.py](paradigm/runtime/markers.py)。
 项目提供单次运行目录到 BIDS behavior/events 文件的转换脚本：
 
 ```bash
-conda run -n psycho python -m paradigm.scripts.export_bids data/sub-P001/ses-S01/doors/20260324_120000 --bids-root bids_dataset
+uv run python -m paradigm.scripts.export_bids data/sub-P001/ses-S01/doors/20260324_120000 --bids-root bids_dataset
 ```
 
 该脚本会生成：
@@ -290,7 +292,7 @@ conda run -n psycho python -m paradigm.scripts.export_bids data/sub-P001/ses-S01
 新的轻量监视器位于顶层 `tools/` 目录，当前优先支持离散 marker 流，并为后续 EEG / fNIRS / eye tracker 轨道扩展保留统一数据模型与 adapter 接口：
 
 ```bash
-conda run -n psycho python -m tools.lsl_monitor
+uv run python -m tools.lsl_monitor
 ```
 
 常用参数：
@@ -306,7 +308,7 @@ conda run -n psycho python -m tools.lsl_monitor
 示例：
 
 ```bash
-conda run -n psycho python -m tools.lsl_monitor --stream-name PsychoParadigmMarkers
+uv run python -m tools.lsl_monitor --stream-name PsychoParadigmMarkers
 ```
 
 当前版本特性：
@@ -323,7 +325,7 @@ conda run -n psycho python -m tools.lsl_monitor --stream-name PsychoParadigmMark
 新的 XDF viewer 同样位于顶层 `tools/`，当前先把 marker 流支持做扎实：
 
 ```bash
-conda run -n psycho python -m tools.xdf_viewer path/to/recording.xdf
+uv run python -m tools.xdf_viewer path/to/recording.xdf
 ```
 
 常用参数：
@@ -537,5 +539,5 @@ run_metadata.json 还会同步写入 run_summary_schema，便于后续自动 QC 
 运行测试：
 
 ```bash
-conda run -n psycho python -m unittest discover -s paradigm/tests -t . -v
+uv run python -m unittest discover -s paradigm/tests -t . -v
 ```

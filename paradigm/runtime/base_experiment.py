@@ -58,12 +58,13 @@ class BaseExperiment:
         self.marker_manager = MarkerManager(self.config.markers, self.global_clock, fnirs_config=self.config.fnirs, task_name=self.task_name)
         self.window = self._create_window()
         self.keyboard = keyboard.Keyboard()
-        self.frame_rate_estimate = self.window.getActualFrameRate(
+        frame_rate_result = self.window.getActualFrameRate(
             nIdentical=20,
             nMaxFrames=240,
             nWarmUpFrames=20,
-            threshold=1.0,
+            threshold=1,
         )
+        self.frame_rate_estimate = float(frame_rate_result) if frame_rate_result is not None else None
         self.window.recordFrameIntervals = self.config.screen.record_frame_intervals
         self.default_text = visual.TextStim(win=self.window, text="", color="white", height=0.04, wrapWidth=1.4)
         self.fixation = visual.TextStim(win=self.window, text="+", color="white", height=0.05)

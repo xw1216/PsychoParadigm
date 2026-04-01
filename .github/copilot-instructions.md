@@ -1,11 +1,11 @@
 # Project Guidelines
 
 ## Build and Test
-- 在项目根目录优先使用 conda 环境 `psycho` 运行命令。
-- 运行任务：`conda run -n psycho python main.py doors --participant P001 --session S01 --windowed`，`prl` 与 `rdm` 同理。
-- 运行测试：`conda run -n psycho python -m unittest discover -s paradigm/tests -t . -v`。
-- 导出 BIDS：`conda run -n psycho python -m paradigm.scripts.export_bids <run_dir> --bids-root <bids_root>`。
-- LSL 与 XDF 工具分别使用 `python -m tools.lsl_monitor`、`python -m tools.xdf_viewer`。
+- 在项目根目录默认使用 `uv run` 运行命令；如果本机已有 conda 环境 `psycho`，可等价改用 `conda run -n psycho`。
+- 运行任务：`uv run python main.py doors --participant P001 --session S01 --windowed`，`prl` 与 `rdm` 同理。
+- 运行测试：`uv run python -m unittest discover -s paradigm/tests -t . -v`。
+- 导出 BIDS：`uv run python -m paradigm.scripts.export_bids <run_dir> --bids-root <bids_root>`。
+- LSL 与 XDF 工具默认分别使用 `uv run python -m tools.lsl_monitor`、`uv run python -m tools.xdf_viewer`。
 
 ## Architecture
 - CLI 入口在 [main.py](../main.py) 与 [paradigm/app.py](../paradigm/app.py)；配置定义集中在 [paradigm/config.py](../paradigm/config.py)。

@@ -3,10 +3,18 @@ import random
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Sequence, TypeVar
+from typing import Any, ClassVar, Iterable, Protocol, Sequence, TypeGuard, TypeVar
 
 
 T = TypeVar("T")
+
+
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+
+def _is_dataclass_instance(value: Any) -> TypeGuard[_DataclassInstance]:
+    return is_dataclass(value) and not isinstance(value, type)
 
 
 def ensure_directory(path: Path) -> Path:
@@ -28,13 +36,13 @@ def sample_jitter(time_range_s: Sequence[float], rng: random.Random) -> float:
 
 
 def dataclass_to_dict(value: Any) -> Any:
-    if is_dataclass(value):
+    if _is_dataclass_instance(value):
         return asdict(value)
     return value
 
 
 def make_json_safe(value: Any) -> Any:
-    if is_dataclass(value):
+    if _is_dataclass_instance(value):
         return make_json_safe(asdict(value))
     if isinstance(value, dict):
         return {str(key): make_json_safe(item) for key, item in value.items()}

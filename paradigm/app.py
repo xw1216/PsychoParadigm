@@ -12,22 +12,6 @@ TASK_REGISTRY = {
 }
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="PsychoPy 实验任务启动器")
-    parser.add_argument("task", nargs="?", choices=sorted(TASK_REGISTRY.keys()), help="要运行的任务")
-    parser.add_argument("--participant", dest="participant", default=None, help="被试编号")
-    parser.add_argument("--session", dest="session", default=None, help="session 编号")
-    parser.add_argument("--windowed", action="store_true", help="以窗口模式运行，便于调试")
-    parser.add_argument("--enable-lsl", action="store_true", help="为本次运行启用 LSL marker 输出")
-    parser.add_argument("--disable-lsl", action="store_true", help="为本次运行禁用 LSL marker 输出")
-    parser.add_argument("--enable-lpt", action="store_true", help="为本次运行启用 LPT marker 输出")
-    parser.add_argument("--disable-lpt", action="store_true", help="为本次运行禁用 LPT marker 输出")
-    parser.add_argument("--enable-iohub", action="store_true", help="启用 ioHub 眼动接口")
-    parser.add_argument("--disable-iohub", action="store_true", help="禁用 ioHub 眼动接口")
-    parser.add_argument("--practice", action="store_true", help="以简短练习配置运行任务")
-    return parser.parse_args()
-
-
 def apply_practice_overrides(config, task_name: str):
     config.practice.enabled = True
     config.common.break_every_n_trials = 9999
@@ -74,6 +58,22 @@ def prompt_if_missing(value: str | None, prompt_text: str, fallback: str) -> str
         return fallback
     return typed or fallback
 
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="PsychoPy 实验任务启动器")
+    parser.add_argument("task", nargs="?", choices=sorted(TASK_REGISTRY.keys()), help="要运行的任务")
+    parser.add_argument("--participant", dest="participant", default=None, help="被试编号")
+    parser.add_argument("--practice", action="store_true", help="以简短练习配置运行任务")
+    parser.add_argument("--session", dest="session", default=None, help="session 编号")
+    parser.add_argument("--windowed", action="store_true", help="以窗口模式运行，便于调试")
+    
+    parser.add_argument("--enable-lsl", action="store_true", help="为本次运行启用 LSL marker 输出")
+    parser.add_argument("--disable-lsl", action="store_true", help="为本次运行禁用 LSL marker 输出")
+    parser.add_argument("--enable-lpt", action="store_true", help="为本次运行启用 LPT marker 输出")
+    parser.add_argument("--disable-lpt", action="store_true", help="为本次运行禁用 LPT marker 输出")
+    parser.add_argument("--enable-iohub", action="store_true", help="启用 ioHub 眼动接口")
+    parser.add_argument("--disable-iohub", action="store_true", help="禁用 ioHub 眼动接口")
+    return parser.parse_args()
 
 def main() -> None:
     args = parse_args()

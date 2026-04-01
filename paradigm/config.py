@@ -30,12 +30,12 @@ class DataConfig:
 
 @dataclass(slots=True)
 class MarkerConfig:
-    enable_lsl: bool = True
     enable_lpt: bool = False
     lsl_stream_name: str = "PsychoParadigmMarkers"
     lsl_stream_type: str = "Markers"
     lsl_source_id: str = "psycho-paradigm-marker-source"
 
+    enable_lsl: bool = True
     lpt_address: int = 0x0378
     lpt_pulse_width_ms: float = 5.0
     lpt_reset_on_close: bool = True
@@ -93,8 +93,8 @@ class PracticeConfig:
 class DoorsTaskConfig:
     blocks: int = 2
     trials_per_block: int = 40
-    practice_blocks: int = 1
-    practice_trials_per_block: int = 6
+    practice_blocks: int = 2
+    practice_trials_per_block: int = 5
     fixation_s: float = 0.5
     response_timeout_s: float = 1.5
     post_choice_delay_s: float = 0.5
@@ -116,7 +116,7 @@ class PRLTaskConfig:
     blocks: int = 6
     trials_per_block: int = 24
     practice_blocks: int = 2
-    practice_trials_per_block: int = 6
+    practice_trials_per_block: int = 5
     fixation_s: float = 0.5
     response_timeout_s: float = 1.5
     post_choice_delay_range_s: tuple[float, float] = (0.3, 0.5)
@@ -142,12 +142,13 @@ class PRLTaskConfig:
 class RDMTaskConfig:
     blocks: int = 5
     trials_per_condition: int = 10
-    practice_blocks: int = 1
-    practice_trials_per_condition: int = 1
+
     fixation_s: float = 0.5
     response_timeout_s: float = 1.5
     post_response_blank_s: float = 0.5
     iti_range_s: tuple[float, float] = (0.8, 1.2)
+    feedback_s: float = 0.35
+
     coherence_levels: list[float] = field(default_factory=lambda: [0.05, 0.1, 0.2, 0.4, 0.6])
     practice_coherence_levels: list[float] = field(default_factory=lambda: [0.1, 0.4, 0.6])
     directions: tuple[str, str] = ("left", "right")
@@ -159,18 +160,21 @@ class RDMTaskConfig:
     signal_dots: str = "same"
     noise_dots: str = "direction"
     dot_size: float = 4.0
-    feedback_s: float = 0.35
     export_bin_count: int = 5
     feedback_mode: str = "correctness"
     timeout_feedback_text: str = "反应过慢"
     online_fixation_break_detection: bool = False
     exclude_timeouts_from_analysis: bool = True
     confidence_rating_enabled: bool = False
+
+    practice_blocks: int = 2
+    practice_trials_per_condition: int = 1
     practice_staircase_enabled: bool = False
     practice_staircase_start_coherence: float = 0.4
     practice_staircase_step: float = 0.05
     practice_staircase_min_coherence: float = 0.05
     practice_staircase_max_coherence: float = 0.8
+
     marker_codes: dict[str, int] = field(default_factory=lambda: get_task_code_map("rdm"))
 
 
@@ -179,12 +183,13 @@ class AppConfig:
     screen: ScreenConfig = field(default_factory=ScreenConfig)
     data: DataConfig = field(default_factory=DataConfig)
     markers: MarkerConfig = field(default_factory=MarkerConfig)
-    fnirs: FNIRSConfig = field(default_factory=FNIRSConfig)
-    eye_tracker: EyeTrackerConfig = field(default_factory=EyeTrackerConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     common: CommonTaskConfig = field(default_factory=CommonTaskConfig)
     practice: PracticeConfig = field(default_factory=PracticeConfig)
 
+    fnirs: FNIRSConfig = field(default_factory=FNIRSConfig)
+    eye_tracker: EyeTrackerConfig = field(default_factory=EyeTrackerConfig)
+    
     doors: DoorsTaskConfig = field(default_factory=DoorsTaskConfig)
     prl: PRLTaskConfig = field(default_factory=PRLTaskConfig)
     rdm: RDMTaskConfig = field(default_factory=RDMTaskConfig)
