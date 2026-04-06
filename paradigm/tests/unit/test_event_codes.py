@@ -16,13 +16,14 @@ class EventCodeTests(unittest.TestCase):
         definition = get_event_definition("prl", "prl.reversal.boundary")
         self.assertEqual(definition.event_code, 39)
         self.assertEqual(definition.event_key, "prl.reversal.boundary")
-        self.assertEqual(definition.description, "Contingency-switch boundary at the start of a new reversal block.")
+        self.assertEqual(definition.description, "Hidden contingency reversal boundary after criterion-based learning.")
 
     def test_codebook_snapshot_contains_labels_and_metadata(self) -> None:
         snapshot = build_event_codebook_snapshot()
         self.assertIn("rdm", snapshot)
         self.assertEqual(snapshot["rdm"]["rdm.motion.onset"]["event_code"], 52)
         self.assertEqual(snapshot["rdm"]["rdm.motion.onset"]["description"], "Random dot motion onset.")
+        self.assertEqual(snapshot["marker_test"]["marker_test.pulse"]["event_code"], 72)
 
     def test_event_codes_are_globally_unique_and_byte_sized(self) -> None:
         all_codes = [definition.event_code for task_events in EVENT_REGISTRY.values() for definition in task_events.values()]
@@ -54,6 +55,7 @@ class EventCodeTests(unittest.TestCase):
                 "prl.response.left",
                 "prl.response.right",
                 "prl.response.timeout",
+                "prl.post_choice_delay.onset",
                 "prl.feedback.reward",
                 "prl.feedback.no_reward",
                 "prl.feedback.timeout",
@@ -67,19 +69,30 @@ class EventCodeTests(unittest.TestCase):
             ],
             "rdm": [
                 "rdm.fixation.onset",
+                "rdm.premotion.onset",
                 "rdm.motion.onset",
                 "rdm.response.left",
                 "rdm.response.right",
                 "rdm.response.timeout",
                 "rdm.feedback.correct",
-                "rdm.feedback.incorrect",
+                "rdm.feedback.error",
                 "rdm.feedback.timeout",
+                "rdm.post_response_blank.onset",
                 "rdm.iti.onset",
                 "rdm.block.start",
                 "rdm.block.end",
                 "rdm.experiment.start",
                 "rdm.experiment.end",
                 "rdm.aoi.transition",
+            ],
+            "marker_test": [
+                "marker_test.lsl_wait.start",
+                "marker_test.lsl_wait.end",
+                "marker_test.sequence.start",
+                "marker_test.pulse",
+                "marker_test.sequence.end",
+                "marker_test.experiment.start",
+                "marker_test.experiment.end",
             ],
         }
         for task_name, event_keys in task_event_keys.items():
@@ -94,7 +107,8 @@ class EventCodeTests(unittest.TestCase):
         self.assertIn("n_trials", schema["common_fields"])
         self.assertIn("timeout_rate", schema["common_fields"])
         self.assertIn("feedback_mode", schema["task_fields"])
-        self.assertIn("accuracy_by_coherence", schema["task_fields"])
+        self.assertIn("accuracy_by_abs_coherence", schema["task_fields"])
+        self.assertIn("psychometric_right_choice", schema["task_fields"])
 
     def test_event_codebook_schema_clarifies_hardware_marker_meaning(self) -> None:
         schema = build_event_codebook_schema()
@@ -103,7 +117,8 @@ class EventCodeTests(unittest.TestCase):
 
     def test_task_specific_data_schema_marks_primary_prl_analysis_fields(self) -> None:
         schema = get_task_specific_data_schema("prl")
-        self.assertIn("chosen_good", schema["primary_analysis_fields"])
+        self.assertIn("optimal_choice", schema["primary_analysis_fields"])
         self.assertIn("trial_phase", schema["primary_analysis_fields"])
         self.assertIn("outcome_expectedness", schema["primary_analysis_fields"])
-        self.assertIn("prediction_error", schema["primary_analysis_fields"])
+        self.assertIn("signed_prediction_error", schema["primary_analysis_fields"])
+        self.assertIn("unsigned_prediction_error", schema["primary_analysis_fields"])

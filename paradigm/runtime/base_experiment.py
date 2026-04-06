@@ -1,3 +1,4 @@
+import json
 import random
 from typing import Any, Callable
 
@@ -53,8 +54,10 @@ class BaseExperiment:
         self.frame_rate_estimate = self.services.frame_rate_estimate
         self.default_text = self.services.default_text
         self.fixation = self.services.fixation
+        self.text_font = self.services.text_font_request
         self.eye_tracker_manager = self.services.eye_tracker_manager
         self.eye_tracker_status = self.services.eye_tracker_manager.status
+        self._flip_time_global_offset = core.getTime() - self.global_clock.getTime()
         self._write_metadata_snapshot()
 
     def continue_key_name(self) -> str:
@@ -140,6 +143,30 @@ class BaseExperiment:
             fnirs_sent=marker_result.fnirs_sent if marker_result else None,
             extra_metadata=extra_metadata,
         )
+
+    def flip_time_to_global_time(self, flip_time: float | None) -> float | None:
+        if flip_time is None or flip_time < 0:
+            return None
+        return flip_time - self._flip_time_global_offset
+
+    @staticmethod
+    def append_marker_result_codes(
+        marker_result: MarkerResult | None,
+        *,
+        lsl_codes: list[int],
+        lpt_codes: list[int],
+        fnirs_codes: list[int],
+    ) -> None:
+        if marker_result is None:
+            return
+        if marker_result.lsl_sent:
+            lsl_codes.append(marker_result.code)
+        if marker_result.lpt_sent:
+            lpt_codes.append(marker_result.code)
+        if marker_result.fnirs_sent:
+            fnirs_code = marker_result.payload.get("fnirs_code")
+            if fnirs_code is not None:
+                fnirs_codes.append(int(fnirs_code))
 
     def check_escape(self) -> None:
         keys = self.keyboard.getKeys(keyList=["escape"], waitRelease=False, clear=False)
@@ -310,7 +337,7 @@ class BaseExperiment:
             metadata={"task": self.task_name, "block": block, "trial": trial},
         )
         self.hold_until(self.fixation.draw, deadline_s=flip_time + duration_s)
-        return flip_time
+        return self.flip_time_to_global_time(flip_time)
 
     def wait_for_response(
         self,
@@ -352,6 +379,7 @@ class BaseExperiment:
                 break
         return {
             "onset_flip": onset_flip,
+            "onset_time": self.flip_time_to_global_time(onset_flip),
             "response": response,
             "rt": rt,
             "response_abs": response_abs,
@@ -370,8 +398,8 @@ class BaseExperiment:
         block: int,
         trial: int,
         metadata: dict[str, Any] | None = None,
-    ) -> float:
-        flip_time, _ = self.flip_with_marker(
+    ) -> tuple[float | None, MarkerResult | None]:
+        flip_time, marker_meta = self.flip_with_marker(
             draw_fn,
             event_code=event_code,
             label=label,
@@ -381,7 +409,7 @@ class BaseExperiment:
             metadata=metadata,
         )
         self.hold_until(draw_fn, deadline_s=flip_time + duration_s)
-        return flip_time
+        return self.flip_time_to_global_time(flip_time), marker_meta["marker_result"]
 
     def sample_iti(self, time_range: tuple[float, float]) -> float:
         return sample_jitter(time_range, self.rng)
@@ -391,6 +419,26 @@ class BaseExperiment:
 
     def log_trial_row(self, row: dict[str, Any]) -> None:
         self.trial_logger.log_trial(row)
+
+    def _write_practice_log_audit(self) -> None:
+        from paradigm.analysis.log_audit import AUDIT_REPORT_NAME, audit_run_directory, write_audit_report
+
+        audit_path = self.paths.run_dir / AUDIT_REPORT_NAME
+        try:
+            report = audit_run_directory(self.paths.run_dir)
+        except Exception as exc:  # pragma: no cover
+            report = {
+                "run_dir": str(self.paths.run_dir),
+                "task": self.task_name,
+                "practice_enabled": True,
+                "status": "error",
+                "errors": [f"log audit failed: {exc.__class__.__name__}: {exc}"],
+                "warnings": [],
+                "checks": {},
+            }
+            audit_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+            return
+        write_audit_report(audit_path, report)
 
     def finalize(self) -> None:
         self.finished_at = iso_timestamp()
@@ -405,9 +453,11 @@ class BaseExperiment:
                             event_name="system.frame.dropped_warning",
                             extra_metadata={"frame_index": index, "interval_s": interval},
                         )
-        self._write_metadata_snapshot()
         self.event_logger.close()
         self.trial_logger.close()
+        if self.config.practice.enabled:
+            self._write_practice_log_audit()
+        self._write_metadata_snapshot()
         self.marker_manager.close()
         self.eye_tracker_manager.close()
         self.window.close()

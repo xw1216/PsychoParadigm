@@ -1,4 +1,5 @@
-from .prl import PRLTask
+import importlib
+
 from .prl_logic import (
     PRLTrialState,
     RescorlaWagnerAgent,
@@ -17,3 +18,9 @@ __all__ = [
     "classify_prl_trial_phase",
     "resolve_prl_timeout_policy",
 ]
+
+
+def __getattr__(name: str):
+    if name == "PRLTask":
+        return getattr(importlib.import_module("paradigm.tasks.prl.prl"), name)
+    raise AttributeError(name)

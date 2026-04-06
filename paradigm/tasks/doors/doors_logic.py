@@ -23,12 +23,11 @@ def format_doors_feedback(trial: DoorTrial, task_config: DoorsTaskConfig) -> tup
 
 
 def build_doors_trials(task_config: DoorsTaskConfig, rng: random.Random) -> list[DoorTrial]:
-    total_trials = task_config.blocks * task_config.trials_per_block
-    sequence = balanced_binary_sequence(total_trials, rng)
     trials: list[DoorTrial] = []
     for block in range(1, task_config.blocks + 1):
+        block_sequence = balanced_binary_sequence(task_config.trials_per_block, rng)
         for trial_in_block in range(1, task_config.trials_per_block + 1):
             global_index = (block - 1) * task_config.trials_per_block + trial_in_block
-            feedback_type = "gain" if sequence[global_index - 1] == 1 else "loss"
+            feedback_type = "gain" if block_sequence[trial_in_block - 1] == 1 else "loss"
             trials.append(DoorTrial(block=block, trial_index=global_index, feedback_type=feedback_type))
     return trials

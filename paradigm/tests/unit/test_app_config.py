@@ -42,6 +42,6 @@ class AppConfigOverrideTests(unittest.TestCase):
         updated = apply_cli_overrides(DEFAULT_CONFIG, self._args(practice=True), task_name="rdm")
         self.assertTrue(updated.practice.enabled)
         self.assertEqual(updated.rdm.blocks, updated.rdm.practice_blocks)
-        self.assertEqual(updated.rdm.trials_per_condition, updated.rdm.practice_trials_per_condition)
-        self.assertEqual(updated.rdm.coherence_levels, updated.rdm.practice_coherence_levels)
+        self.assertEqual(updated.rdm.trials_per_signed_coherence, updated.rdm.practice_trials_per_signed_coherence)
+        self.assertEqual(updated.rdm.signed_coherence_levels, updated.rdm.practice_signed_coherence_levels)
         self.assertEqual(updated.common.break_every_n_trials, 9999)

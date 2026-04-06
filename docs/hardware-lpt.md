@@ -17,6 +17,7 @@
   - `markers.lpt_pulse_width_ms`
   - `markers.lpt_reset_on_close`
 - The backend uses `ctypes`, checks `IsInpOutDriverOpen`, writes markers through `Out32`, and clears the line back to zero after the configured pulse width.
+- The default pulse width is now `20 ms`. This is intentionally more conservative than `5 ms`: if a target device is level-sampling the trigger line, the pulse width should be longer than one sampling period to avoid being missed between samples. `5 ms` is usually fine for `>= 250 Hz`, but it is not a safe default for slower samplers.
 
 ## Status and metadata
 

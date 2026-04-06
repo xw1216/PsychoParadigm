@@ -3,10 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from paradigm.analysis.rdm import export_chronometric_summary, export_ddm_ready_table, export_psychometric_summary
 from paradigm.config import DoorsTaskConfig, PRLTaskConfig, RDMTaskConfig
 from paradigm.tasks.doors.doors import DoorTrial, build_doors_trials, format_doors_feedback
 from paradigm.tasks.prl.prl import PRLTrialState, RescorlaWagnerAgent, ReversalEngine, classify_prl_expectedness, classify_prl_trial_phase, resolve_prl_timeout_policy
-from paradigm.tasks.rdm.rdm import RDMTask, build_rdm_trials, determine_rdm_trial_quality, resolve_rdm_feedback_plan
+from paradigm.tasks.rdm.rdm import build_rdm_trials, determine_rdm_trial_quality, resolve_rdm_feedback_plan
 
 
 class StaticRng:
@@ -29,6 +30,10 @@ class TaskGenerationTests(unittest.TestCase):
         feedback_types = [trial.feedback_type for trial in trials]
         self.assertEqual(feedback_types.count("gain"), 4)
         self.assertEqual(feedback_types.count("loss"), 4)
+        for block in (1, 2):
+            block_feedback = [trial.feedback_type for trial in trials if trial.block == block]
+            self.assertEqual(block_feedback.count("gain"), 2)
+            self.assertEqual(block_feedback.count("loss"), 2)
 
     def test_format_doors_feedback_supports_numeric_and_label_modes(self) -> None:
         numeric_config = DoorsTaskConfig(feedback_display_mode="numeric", gain_value=10, loss_value=-5)
@@ -40,34 +45,96 @@ class TaskGenerationTests(unittest.TestCase):
         self.assertEqual(format_doors_feedback(loss_trial, label_config), ("LOSS", "tomato", -5))
 
     def test_reversal_engine_sets_boundaries_and_feedback(self) -> None:
-        engine = ReversalEngine(blocks=2, trials_per_block=3, reward_probability_good=0.8, reward_probability_bad=0.2, rng=StaticRng([0.1, 0.9]))
+        engine = ReversalEngine(
+            blocks=2,
+            trials_per_block=3,
+            reward_probability_good=0.8,
+            reward_probability_bad=0.2,
+            criterion_window=3,
+            criterion_optimal_choices=3,
+            min_trials_before_reversal=3,
+            stimulus_labels=("A", "B"),
+            rng=StaticRng([0.1, 0.1, 0.1, 0.9]),
+        )
         first_state = engine.get_trial_state(1)
+        outcome = engine.resolve_feedback_for_state(first_state, "left")
+        update = engine.update_after_trial(optimal_choice=outcome.optimal_choice, timeout=False)
+
+        second_state = engine.get_trial_state(2)
+        outcome = engine.resolve_feedback_for_state(second_state, "left")
+        update = engine.update_after_trial(optimal_choice=outcome.optimal_choice, timeout=False)
+
+        third_state = engine.get_trial_state(3)
+        outcome = engine.resolve_feedback_for_state(third_state, "left")
+        update = engine.update_after_trial(optimal_choice=outcome.optimal_choice, timeout=False)
         fourth_state = engine.get_trial_state(4)
 
-        self.assertEqual(first_state.good_side, "left")
+        self.assertEqual(first_state.good_stimulus, "A")
+        self.assertEqual(first_state.left_stimulus, "A")
+        self.assertEqual(first_state.right_stimulus, "B")
         self.assertFalse(first_state.is_reversal_boundary)
-        self.assertEqual(fourth_state.good_side, "right")
+        self.assertTrue(update["criterion_reached"])
+        self.assertEqual(fourth_state.good_stimulus, "B")
         self.assertTrue(fourth_state.is_reversal_boundary)
+        self.assertEqual(fourth_state.trials_since_reversal, 0)
+        self.assertEqual(fourth_state.left_stimulus, "A")
+        self.assertEqual(fourth_state.right_stimulus, "B")
 
-        chosen_good, reward = engine.resolve_feedback_for_state(first_state, "left")
-        self.assertTrue(chosen_good)
-        self.assertTrue(reward)
+        fourth_outcome = engine.resolve_feedback_for_state(fourth_state, "left")
+        self.assertFalse(fourth_outcome.optimal_choice)
+        self.assertFalse(fourth_outcome.reward)
 
-        chosen_good, reward = engine.resolve_feedback_for_state(fourth_state, "left")
-        self.assertFalse(chosen_good)
-        self.assertFalse(reward)
+    def test_reversal_engine_requires_current_correct_trial_to_schedule_reversal(self) -> None:
+        engine = ReversalEngine(
+            blocks=2,
+            trials_per_block=3,
+            reward_probability_good=0.8,
+            reward_probability_bad=0.2,
+            criterion_window=3,
+            criterion_optimal_choices=2,
+            min_trials_before_reversal=3,
+            stimulus_labels=("A", "B"),
+            rng=StaticRng([0.1, 0.1, 0.9, 0.1]),
+        )
+
+        first_state = engine.get_trial_state(1)
+        first_outcome = engine.resolve_feedback_for_state(first_state, "left")
+        engine.update_after_trial(optimal_choice=first_outcome.optimal_choice, timeout=False)
+
+        second_state = engine.get_trial_state(2)
+        second_outcome = engine.resolve_feedback_for_state(second_state, "left")
+        engine.update_after_trial(optimal_choice=second_outcome.optimal_choice, timeout=False)
+
+        third_state = engine.get_trial_state(3)
+        third_outcome = engine.resolve_feedback_for_state(third_state, "right")
+        third_update = engine.update_after_trial(optimal_choice=third_outcome.optimal_choice, timeout=False)
+        self.assertFalse(third_update["criterion_reached"])
+
+        fourth_state = engine.get_trial_state(4)
+        fourth_outcome = engine.resolve_feedback_for_state(fourth_state, "left")
+        fourth_update = engine.update_after_trial(optimal_choice=fourth_outcome.optimal_choice, timeout=False)
+        self.assertTrue(fourth_update["criterion_reached"])
 
     def test_rl_agent_updates_q_values(self) -> None:
-        agent = RescorlaWagnerAgent(learning_rate=0.5, inverse_temperature=2.0, initial_q=0.5)
-        prediction_error = agent.update("left", True)
-        self.assertAlmostEqual(prediction_error, 0.5)
-        self.assertAlmostEqual(agent.q_values["left"], 0.75)
-        self.assertGreater(agent.choice_probability_left(), 0.5)
+        agent = RescorlaWagnerAgent(
+            positive_learning_rate=0.5,
+            negative_learning_rate=0.25,
+            inverse_temperature=2.0,
+            stickiness=0.2,
+            initial_q=0.5,
+            stimulus_labels=("A", "B"),
+        )
+        signed_pe, unsigned_pe = agent.update("A", True)
+        self.assertAlmostEqual(signed_pe, 0.5)
+        self.assertAlmostEqual(unsigned_pe, 0.5)
+        self.assertAlmostEqual(agent.q_values["A"], 0.75)
+        self.assertGreater(agent.choice_probability_left(left_stimulus="A", right_stimulus="B"), 0.5)
 
     def test_prl_expectedness_and_phase_helpers(self) -> None:
-        state_early = PRLTrialState(block=2, trial_index=41, trial_in_block=1, good_side="right", is_reversal_boundary=True)
-        state_relearning = PRLTrialState(block=2, trial_index=48, trial_in_block=8, good_side="right", is_reversal_boundary=False)
-        state_stable_pre = PRLTrialState(block=2, trial_index=79, trial_in_block=39, good_side="right", is_reversal_boundary=False)
+        state_initial = PRLTrialState(block=1, trial_index=3, trial_in_block=3, reversal_index=0, good_stimulus="A", left_stimulus="A", right_stimulus="B", is_reversal_boundary=False, trials_since_reversal=2)
+        state_early = PRLTrialState(block=2, trial_index=41, trial_in_block=1, reversal_index=1, good_stimulus="B", left_stimulus="A", right_stimulus="B", is_reversal_boundary=True, trials_since_reversal=0)
+        state_relearning = PRLTrialState(block=2, trial_index=48, trial_in_block=8, reversal_index=1, good_stimulus="B", left_stimulus="A", right_stimulus="B", is_reversal_boundary=False, trials_since_reversal=7)
+        state_stable = PRLTrialState(block=2, trial_index=60, trial_in_block=20, reversal_index=1, good_stimulus="B", left_stimulus="A", right_stimulus="B", is_reversal_boundary=False, trials_since_reversal=18)
 
         self.assertEqual(classify_prl_expectedness(True, True), "expected_reward")
         self.assertEqual(classify_prl_expectedness(True, False), "unexpected_no_reward")
@@ -75,16 +142,20 @@ class TaskGenerationTests(unittest.TestCase):
         self.assertEqual(classify_prl_expectedness(False, False), "expected_no_reward")
 
         self.assertEqual(
-            classify_prl_trial_phase(state_early, total_blocks=4, trials_per_block=40, early_post_reversal_trials=5, relearning_trials=10, stable_pre_reversal_trials=5),
+            classify_prl_trial_phase(state_initial, early_post_reversal_trials=5, relearning_trials=10),
+            "initial_learning",
+        )
+        self.assertEqual(
+            classify_prl_trial_phase(state_early, early_post_reversal_trials=5, relearning_trials=10),
             "early_post_reversal",
         )
         self.assertEqual(
-            classify_prl_trial_phase(state_relearning, total_blocks=4, trials_per_block=40, early_post_reversal_trials=5, relearning_trials=10, stable_pre_reversal_trials=5),
+            classify_prl_trial_phase(state_relearning, early_post_reversal_trials=5, relearning_trials=10),
             "relearning",
         )
         self.assertEqual(
-            classify_prl_trial_phase(state_stable_pre, total_blocks=4, trials_per_block=40, early_post_reversal_trials=5, relearning_trials=10, stable_pre_reversal_trials=5),
-            "stable_pre_reversal",
+            classify_prl_trial_phase(state_stable, early_post_reversal_trials=5, relearning_trials=10),
+            "stable",
         )
 
     def test_prl_timeout_policy_excludes_trial_and_skips_rl_update(self) -> None:
@@ -98,29 +169,33 @@ class TaskGenerationTests(unittest.TestCase):
         self.assertTrue(valid_policy["rl_update_applied"])
 
     def test_build_rdm_trials_covers_conditions(self) -> None:
-        config = RDMTaskConfig(blocks=2, trials_per_condition=2, coherence_levels=[0.1, 0.3], directions=("left", "right"))
+        config = RDMTaskConfig(blocks=2, trials_per_signed_coherence=1, signed_coherence_levels=[-0.3, -0.1, 0.1, 0.3])
         trials = build_rdm_trials(config, random.Random(99))
 
-        self.assertEqual(len(trials), 8)
-        conditions = {(trial.direction, trial.coherence) for trial in trials}
-        self.assertEqual(conditions, {("left", 0.1), ("left", 0.3), ("right", 0.1), ("right", 0.3)})
+        self.assertEqual(len(trials), 4)
+        conditions = {(trial.direction, trial.signed_coherence) for trial in trials}
+        self.assertEqual(conditions, {("left", -0.3), ("left", -0.1), ("right", 0.1), ("right", 0.3)})
 
     def test_rdm_export_helpers_write_files(self) -> None:
         rows = [
-            {"trial_index": 1, "coherence": 0.1, "direction": "left", "response": "left", "correct": True, "rt": 0.4, "timeout": False, "response_locked_rt": 0.4, "cpp_slope_proxy": 0.25, "exclude_trial": None},
-            {"trial_index": 2, "coherence": 0.1, "direction": "right", "response": "left", "correct": False, "rt": 0.6, "timeout": False, "response_locked_rt": 0.6, "cpp_slope_proxy": 0.166, "exclude_trial": None},
+            {"trial_index": 1, "signed_coherence": -0.1, "absolute_coherence": 0.1, "direction": "left", "response": "left", "correct": True, "rt": 0.4, "timeout": False, "response_locked_rt": 0.4, "cpp_slope_proxy": 0.25, "exclude_trial": None, "exclude_reason": None},
+            {"trial_index": 2, "signed_coherence": 0.1, "absolute_coherence": 0.1, "direction": "right", "response": "left", "correct": False, "rt": 0.6, "timeout": False, "response_locked_rt": 0.6, "cpp_slope_proxy": 0.166, "exclude_trial": None, "exclude_reason": None},
         ]
         with tempfile.TemporaryDirectory() as tmp_dir:
             psychometric_path = Path(tmp_dir) / "psychometric.csv"
+            chronometric_path = Path(tmp_dir) / "chronometric.csv"
             ddm_path = Path(tmp_dir) / "ddm.csv"
-            RDMTask.export_psychometric_summary(rows, psychometric_path)
-            RDMTask.export_ddm_ready_table(rows, ddm_path)
+            export_psychometric_summary(rows, psychometric_path)
+            export_chronometric_summary(rows, chronometric_path)
+            export_ddm_ready_table(rows, ddm_path)
             self.assertTrue(psychometric_path.exists())
+            self.assertTrue(chronometric_path.exists())
             self.assertTrue(ddm_path.exists())
 
     def test_rdm_feedback_plan_and_quality_flags(self) -> None:
         self.assertEqual(resolve_rdm_feedback_plan(correct=True, timeout=False, feedback_mode="correctness"), ("correct", "feedback.correct", "正确"))
         self.assertEqual(resolve_rdm_feedback_plan(correct=False, timeout=True, feedback_mode="correctness"), ("timeout", "feedback.timeout", "反应过慢"))
+        self.assertEqual(resolve_rdm_feedback_plan(correct=False, timeout=False, feedback_mode="correctness"), ("error", "feedback.error", "错误"))
         self.assertEqual(resolve_rdm_feedback_plan(correct=False, timeout=False, feedback_mode="none"), ("omitted", None, None))
 
         self.assertEqual(

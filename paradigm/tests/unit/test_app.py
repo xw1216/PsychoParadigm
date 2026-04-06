@@ -19,6 +19,7 @@ class AppPromptTests(unittest.TestCase):
 
     def test_task_registry_is_lazy(self) -> None:
         self.assertEqual(app_module.TASK_REGISTRY["doors"], ("paradigm.tasks.doors", "DoorsTask"))
+        self.assertEqual(app_module.TASK_REGISTRY["marker_test"], ("paradigm.tasks.marker_test", "MarkerTestTask"))
 
     def test_load_task_class_uses_importlib_lazily(self) -> None:
         fake_module = Mock()

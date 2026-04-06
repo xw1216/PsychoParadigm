@@ -16,6 +16,18 @@ class ScreenConfig:
     wait_blank: bool = True
     record_frame_intervals: bool = True
     target_frame_rate: float = 60.0
+    text_font_name: str | None = None
+    text_font_candidates: tuple[str, ...] = (
+        "Microsoft YaHei UI",
+        "Microsoft YaHei",
+        "微软雅黑",
+        "DengXian",
+        "SimHei",
+        "Droid Sans Fallback",
+        "Noto Sans CJK SC",
+        "Source Han Sans SC",
+        "WenQuanYi Zen Hei",
+    )
 
 
 @dataclass(slots=True)
@@ -33,13 +45,14 @@ class MarkerConfig:
     lsl_stream_name: str = "PsychoParadigmMarkers"
     lsl_stream_type: str = "Markers"
     lsl_source_id: str = "psycho-paradigm-marker-source"
+    lsl_api_config: str | None = None
 
     enable_lsl: bool = True
     lpt_backend: str = "auto"
     lpt_address: int = 0x0378
     lpt_driver_dir: str | None = None
     lpt_dll_name: str = "inpoutx64.dll"
-    lpt_pulse_width_ms: float = 5.0
+    lpt_pulse_width_ms: float = 15.0
     lpt_reset_on_close: bool = True
 
 
@@ -105,6 +118,7 @@ class DoorsTaskConfig:
     gain_label: str = "奖励"
     loss_label: str = "损失"
     timeout_feedback_text: str = "反应过慢"
+    fast_response_threshold_s: float = 0.15
 
     response_keys: tuple[str, str] = ("left", "right")
     marker_codes: dict[str, int] = field(default_factory=lambda: get_task_code_map("doors"))
@@ -115,22 +129,27 @@ class PRLTaskConfig:
     blocks: int = 6
     trials_per_block: int = 24
     practice_blocks: int = 2
-    practice_trials_per_block: int = 5
+    practice_trials_per_block: int = 10
     fixation_s: float = 0.5
     response_timeout_s: float = 1.5
     post_choice_delay_range_s: tuple[float, float] = (0.3, 0.5)
     feedback_s: float = 0.8
     iti_range_s: tuple[float, float] = (0.8, 1.2)
-    reward_probability_good: float = 0.75
-    reward_probability_bad: float = 0.25
+    reward_probability_good: float = 0.8
+    reward_probability_bad: float = 0.2
     reward_value: int = 10
     no_reward_value: int = 0
-    learning_rate: float = 0.2
+    positive_learning_rate: float = 0.2
+    negative_learning_rate: float = 0.2
     inverse_temperature: float = 4.0
+    stickiness: float = 0.15
     initial_q: float = 0.5
-    early_post_reversal_trials: int = 4
-    relearning_trials: int = 8
-    stable_pre_reversal_trials: int = 4
+    stimulus_labels: tuple[str, str] = ("A", "B")
+    criterion_window: int = 10
+    criterion_optimal_choices: int = 8
+    min_trials_before_reversal: int = 12
+    early_post_reversal_trials: int = 5
+    relearning_trials: int = 10
     timeout_feedback_text: str = "反应过慢"
 
     response_keys: tuple[str, str] = ("left", "right")
@@ -140,41 +159,53 @@ class PRLTaskConfig:
 @dataclass(slots=True)
 class RDMTaskConfig:
     blocks: int = 5
-    trials_per_condition: int = 10
+    trials_per_signed_coherence: int = 10
 
     fixation_s: float = 0.5
-    response_timeout_s: float = 1.5
+    premotion_s: float = 0.25
+    coherent_motion_max_s: float = 1.5
     post_response_blank_s: float = 0.5
     iti_range_s: tuple[float, float] = (0.8, 1.2)
     feedback_s: float = 0.35
 
-    coherence_levels: list[float] = field(default_factory=lambda: [0.05, 0.1, 0.2, 0.4, 0.6])
-    practice_coherence_levels: list[float] = field(default_factory=lambda: [0.1, 0.4, 0.6])
-    directions: tuple[str, str] = ("left", "right")
+    signed_coherence_levels: list[float] = field(default_factory=lambda: [-0.6, -0.4, -0.2, -0.1, -0.05, 0.05, 0.1, 0.2, 0.4, 0.6])
+    practice_signed_coherence_levels: list[float] = field(default_factory=lambda: [-0.8, -0.6, -0.4, 0.4, 0.6, 0.8])
     response_keys: tuple[str, str] = ("left", "right")
-    n_dots: int = 250
-    field_size: float = 0.6
-    dot_life: int = 12
-    speed: float = 0.01
+    n_dots: int = 320
+    field_size: float = 0.5
+    field_shape: str = "circle"
+    dot_life: int = 18
+    speed: float = 0.012
     signal_dots: str = "same"
-    noise_dots: str = "direction"
-    dot_size: float = 4.0
+    noise_dots: str = "position"
+    dot_size: float = 5.0
     export_bin_count: int = 5
     feedback_mode: str = "correctness"
     timeout_feedback_text: str = "反应过慢"
     online_fixation_break_detection: bool = False
     exclude_timeouts_from_analysis: bool = True
     confidence_rating_enabled: bool = False
+    fast_response_threshold_s: float = 0.15
 
     practice_blocks: int = 2
-    practice_trials_per_condition: int = 1
+    practice_trials_per_signed_coherence: int = 2
     practice_staircase_enabled: bool = False
-    practice_staircase_start_coherence: float = 0.4
+    practice_staircase_start_signed_coherence: float = 0.4
     practice_staircase_step: float = 0.05
     practice_staircase_min_coherence: float = 0.05
     practice_staircase_max_coherence: float = 0.8
 
     marker_codes: dict[str, int] = field(default_factory=lambda: get_task_code_map("rdm"))
+
+
+@dataclass(slots=True)
+class MarkerTestTaskConfig:
+    start_code: int = 1
+    end_code: int = 255
+    interval_s: float = 0.5
+    consumer_settle_s: float = 0.5
+    auto_continue_unobservable_s: float = 2.0
+    completion_hold_s: float = 1.0
 
 
 @dataclass(slots=True)
@@ -192,6 +223,7 @@ class AppConfig:
     doors: DoorsTaskConfig = field(default_factory=DoorsTaskConfig)
     prl: PRLTaskConfig = field(default_factory=PRLTaskConfig)
     rdm: RDMTaskConfig = field(default_factory=RDMTaskConfig)
+    marker_test: MarkerTestTaskConfig = field(default_factory=MarkerTestTaskConfig)
 
     def snapshot(self) -> dict[str, Any]:
         return asdict(self)

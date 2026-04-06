@@ -5,9 +5,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from psychopy import core
-from pylsl import StreamInfo, StreamOutlet, cf_string
 
 from paradigm.config import FNIRSConfig, MarkerConfig
+from paradigm.hardware.markers.lsl_config import ensure_lsl_environment
+
+ensure_lsl_environment(MarkerConfig())
+
+from pylsl import StreamInfo, StreamOutlet, cf_string
 from paradigm.hardware.markers.backends import LPTBackendProtocol, build_lpt_backend
 
 
@@ -37,6 +41,7 @@ class LSLMarkerBackend:
         self.config = config
         self.outlet = None
         self.status = "disabled"
+        self.config_path = ensure_lsl_environment(config)
         if not config.enable_lsl:
             return
 
@@ -123,6 +128,7 @@ class MarkerManager:
             "lpt_address": self.config.lpt_address,
             "lsl_stream_name": self.config.lsl_stream_name,
             "lsl_stream_type": self.config.lsl_stream_type,
+            "lsl_api_config": self.lsl_backend.config_path,
             "fnirs_enabled": fnirs_enabled,
             "fnirs_mode": "lsl_namespace_only" if fnirs_enabled else "disabled",
             "fnirs_protocol_adapter": "not_implemented" if fnirs_enabled else "not_configured",

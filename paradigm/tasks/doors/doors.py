@@ -1,6 +1,8 @@
 from paradigm.config import AppConfig
 from paradigm.hardware.eyetracking import AOIRegion
 from paradigm.runtime.base_experiment import BaseExperiment, SafeExitRequested
+from paradigm.runtime.choice_panels import ChoicePanelPair
+from paradigm.analysis.doors import summarize_doors_run
 from paradigm.tasks.doors.doors_logic import DoorTrial, build_doors_trials, format_doors_feedback
 
 
@@ -10,21 +12,13 @@ class DoorsTask(BaseExperiment):
 
         super().__init__(task_name="doors", participant=participant, session=session, config=config)
         self.task_config = self.config.doors
-        self.left_door = visual.Rect(self.window, width=0.18, height=0.32, pos=(-0.25, 0), lineColor="white", fillColor=None, lineWidth=3)
-        self.right_door = visual.Rect(self.window, width=0.18, height=0.32, pos=(0.25, 0), lineColor="white", fillColor=None, lineWidth=3)
-        self.left_label = visual.TextStim(self.window, text="左", pos=(-0.25, -0.24), height=0.035, color="white")
-        self.right_label = visual.TextStim(self.window, text="右", pos=(0.25, -0.24), height=0.035, color="white")
-        self.feedback_text = visual.TextStim(self.window, text="", height=0.08, color="white")
-        self.choice_aois = [AOIRegion(name="left_door", left=-0.34, right=-0.16, bottom=-0.16, top=0.16), AOIRegion(name="right_door", left=0.16, right=0.34, bottom=-0.16, top=0.16)]
+        self.choice_panels = ChoicePanelPair(visual, self.window, left_label="左", right_label="右", text_font=self.text_font)
+        self.feedback_text = visual.TextStim(self.window, text="", height=0.08, color="white", font=self.text_font)
+        self.choice_aois = self.choice_panels.build_aois(left_name="left_door", right_name="right_door")
         self._trials = build_doors_trials(self.task_config, self.rng)
 
     def _draw_choice_screen(self, selected: str | None = None) -> None:
-        self.left_door.fillColor = "darkgreen" if selected == "left" else None
-        self.right_door.fillColor = "darkgreen" if selected == "right" else None
-        self.left_door.draw()
-        self.right_door.draw()
-        self.left_label.draw()
-        self.right_label.draw()
+        self.choice_panels.draw(selected=selected)
 
     def _draw_feedback(self) -> None:
         self.feedback_text.draw()
@@ -37,6 +31,9 @@ class DoorsTask(BaseExperiment):
         total_trials = len(self._trials)
         mode_prefix = "练习模式：" if self.config.practice.enabled else ""
         trial_rows: list[dict] = []
+        previous_feedback = None
+        current_feedback_streak_label = None
+        current_feedback_streak_length = 0
         try:
             self.show_labrecorder_wait_screen()
             self.experiment_clock.reset()
@@ -75,23 +72,18 @@ class DoorsTask(BaseExperiment):
                     )
                     self.poll_and_log_aoi(aoi_regions=self.choice_aois, block=block, trial=trial.trial_index)
 
-                    lsl_codes: list[int] = [self.task_config.marker_codes[choice_event]]
-                    lpt_codes: list[int] = [self.task_config.marker_codes[choice_event]]
+                    lsl_codes: list[int] = []
+                    lpt_codes: list[int] = []
                     event_keys: list[str] = [choice_event]
                     fnirs_codes: list[int] = []
-                    choice_fnirs = self.fnirs_code_for(self.task_config.marker_codes[choice_event])
-                    if choice_fnirs is not None:
-                        fnirs_codes.append(choice_fnirs)
+                    self.append_marker_result_codes(response_data["onset_marker"], lsl_codes=lsl_codes, lpt_codes=lpt_codes, fnirs_codes=fnirs_codes)
                     response_label = response_data["response"]
                     timeout = response_data["timeout"]
 
                     if timeout:
                         timeout_marker = self.send_marker_now(event_name=timeout_event, metadata={"task": self.task_name, "block": block, "trial": trial.trial_index}, block=block, trial=trial.trial_index)
-                        lsl_codes.append(timeout_marker.code if timeout_marker.lsl_sent else -1)
-                        lpt_codes.append(timeout_marker.code if timeout_marker.lpt_sent else -1)
                         event_keys.append(timeout_marker.label or timeout_event)
-                        if timeout_marker.fnirs_sent:
-                            fnirs_codes.append(timeout_marker.payload.get("fnirs_code", -1))
+                        self.append_marker_result_codes(timeout_marker, lsl_codes=lsl_codes, lpt_codes=lpt_codes, fnirs_codes=fnirs_codes)
                         response_event = timeout_event
                         feedback_event_name = feedback_timeout_event
                         feedback_code = self.task_config.marker_codes[feedback_event_name]
@@ -108,11 +100,8 @@ class DoorsTask(BaseExperiment):
                             block=block,
                             trial=trial.trial_index,
                         )
-                        lsl_codes.append(response_marker.code if response_marker.lsl_sent else -1)
-                        lpt_codes.append(response_marker.code if response_marker.lpt_sent else -1)
                         event_keys.append(response_marker.label or response_event_name)
-                        if response_marker.fnirs_sent:
-                            fnirs_codes.append(response_marker.payload.get("fnirs_code", -1))
+                        self.append_marker_result_codes(response_marker, lsl_codes=lsl_codes, lpt_codes=lpt_codes, fnirs_codes=fnirs_codes)
                         response_event = response_marker.label or response_event_name
                         feedback_event_name = feedback_gain_event if trial.feedback_type == "gain" else feedback_loss_event
                         feedback_code = self.task_config.marker_codes[feedback_event_name]
@@ -120,7 +109,7 @@ class DoorsTask(BaseExperiment):
                         displayed_feedback = trial.feedback_type
                         feedback_semantics = "outcome"
 
-                    post_choice_delay_onset = self.present_timed_event(
+                    post_choice_delay_onset, post_choice_delay_marker = self.present_timed_event(
                         draw_fn=lambda: self._draw_choice_screen(selected=response_label),
                         duration_s=self.task_config.post_choice_delay_s,
                         event_code=None,
@@ -130,16 +119,12 @@ class DoorsTask(BaseExperiment):
                         trial=trial.trial_index,
                         metadata={"task": self.task_name, "block": block, "trial": trial.trial_index},
                     )
-                    lsl_codes.append(self.task_config.marker_codes[post_choice_event])
-                    lpt_codes.append(self.task_config.marker_codes[post_choice_event])
                     event_keys.append(post_choice_event)
-                    post_delay_fnirs = self.fnirs_code_for(self.task_config.marker_codes[post_choice_event])
-                    if post_delay_fnirs is not None:
-                        fnirs_codes.append(post_delay_fnirs)
+                    self.append_marker_result_codes(post_choice_delay_marker, lsl_codes=lsl_codes, lpt_codes=lpt_codes, fnirs_codes=fnirs_codes)
 
                     self.feedback_text.text = feedback_text
                     self.feedback_text.color = feedback_color
-                    feedback_onset = self.present_timed_event(
+                    feedback_onset, feedback_marker = self.present_timed_event(
                         draw_fn=self._draw_feedback,
                         duration_s=self.task_config.feedback_s,
                         event_code=None,
@@ -149,25 +134,19 @@ class DoorsTask(BaseExperiment):
                         trial=trial.trial_index,
                         metadata={"task": self.task_name, "block": block, "trial": trial.trial_index, "feedback_type": trial.feedback_type, "feedback_value": feedback_value},
                     )
-                    lsl_codes.append(feedback_code)
-                    lpt_codes.append(feedback_code)
                     event_keys.append(feedback_event_name)
-                    feedback_fnirs = self.fnirs_code_for(feedback_code)
-                    if feedback_fnirs is not None:
-                        fnirs_codes.append(feedback_fnirs)
+                    self.append_marker_result_codes(feedback_marker, lsl_codes=lsl_codes, lpt_codes=lpt_codes, fnirs_codes=fnirs_codes)
 
                     iti_duration = self.sample_iti(self.task_config.iti_range_s)
-                    iti_onset = self.present_timed_event(draw_fn=self.fixation.draw, duration_s=iti_duration, event_code=None, label=None, event_name=iti_event, block=block, trial=trial.trial_index, metadata={"task": self.task_name, "block": block, "trial": trial.trial_index, "iti_s": iti_duration})
-                    lsl_codes.append(self.task_config.marker_codes[iti_event])
-                    lpt_codes.append(self.task_config.marker_codes[iti_event])
+                    iti_onset, iti_marker = self.present_timed_event(draw_fn=self.fixation.draw, duration_s=iti_duration, event_code=None, label=None, event_name=iti_event, block=block, trial=trial.trial_index, metadata={"task": self.task_name, "block": block, "trial": trial.trial_index, "iti_s": iti_duration})
                     event_keys.append(iti_event)
-                    iti_fnirs = self.fnirs_code_for(self.task_config.marker_codes[iti_event])
-                    if iti_fnirs is not None:
-                        fnirs_codes.append(iti_fnirs)
+                    self.append_marker_result_codes(iti_marker, lsl_codes=lsl_codes, lpt_codes=lpt_codes, fnirs_codes=fnirs_codes)
 
                     exclude_trial = timeout
                     exclude_reason = "timeout" if timeout else None
                     invalid_response = timeout
+                    current_feedback_streak_length = current_feedback_streak_length + 1 if displayed_feedback == current_feedback_streak_label else 1
+                    current_feedback_streak_label = displayed_feedback
 
                     trial_row = {
                             "participant": self.participant,
@@ -183,7 +162,7 @@ class DoorsTask(BaseExperiment):
                             "feedback": displayed_feedback,
                             "timeout": timeout,
                             "fixation_onset": fixation_onset,
-                            "stim_onset": response_data["onset_flip"],
+                            "stim_onset": response_data["onset_time"],
                             "response_time_abs": response_data["response_abs"],
                             "feedback_onset": feedback_onset,
                             "iti_onset": iti_onset,
@@ -201,13 +180,19 @@ class DoorsTask(BaseExperiment):
                                 "feedback_display_mode": self.task_config.feedback_display_mode,
                                 "response_event": response_event,
                                 "feedback_event": feedback_event_name,
+                                "previous_feedback": previous_feedback,
+                                "feedback_run_length": current_feedback_streak_length,
+                                "block_trial_index": trial_in_block,
                                 "exclude_trial": exclude_trial,
                                 "exclude_reason": exclude_reason,
                                 "invalid_response": invalid_response,
                             },
                         }
                     self.log_trial_row(trial_row)
-                    trial_rows.append(trial_row)
+                    summary_row = dict(trial_row)
+                    summary_row.update(trial_row["task_specific_data"])
+                    trial_rows.append(summary_row)
+                    previous_feedback = displayed_feedback
 
                     if trial_in_block < self.task_config.trials_per_block and trial_in_block % self.config.common.break_every_n_trials == 0:
                         self.show_break(block=block, completed_trials=trial.trial_index, total_trials=total_trials)
@@ -215,19 +200,10 @@ class DoorsTask(BaseExperiment):
                 self.send_marker_now(event_name=self._event("block.end"), metadata={"task": self.task_name, "block": block}, block=block)
 
             self.send_marker_now(event_name=self._event("experiment.end"), metadata={"task": self.task_name})
-            gain_trials = sum(1 for row in trial_rows if row["feedback"] == "gain")
-            loss_trials = sum(1 for row in trial_rows if row["feedback"] == "loss")
-            timeout_trials = sum(1 for row in trial_rows if row["feedback"] == "timeout")
             feedback_event_complete = all(any(name.startswith("doors.feedback.") for name in row["event_keys"]) for row in trial_rows)
-            self.run_summary = {
-                "n_trials": len(trial_rows),
-                "timeout_rate": (sum(1 for row in trial_rows if row["timeout"]) / len(trial_rows)) if trial_rows else None,
-                "gain_trials": gain_trials,
-                "loss_trials": loss_trials,
-                "timeout_trials": timeout_trials,
-                "feedback_event_complete": feedback_event_complete,
-                "task_positioning": "rapid feedback-chain validation for feedback-locked EEG, RewP/FRN, and feedback-theta checks",
-            }
+            self.run_summary = summarize_doors_run(trial_rows, fast_rt_threshold_s=self.task_config.fast_response_threshold_s)
+            self.run_summary["feedback_event_complete"] = feedback_event_complete
+            self.run_summary["task_positioning"] = "feedback-locked validation task for RewP/FRN and feedback P3, not an RL updating task"
             self.final_status = "completed"
             self.show_message(f"{mode_prefix}Doors 任务已完成。\n\n按 {self.continue_key_label()} 结束。")
         except SafeExitRequested:

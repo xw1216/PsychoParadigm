@@ -9,6 +9,7 @@ TASK_REGISTRY = {
     "doors": ("paradigm.tasks.doors", "DoorsTask"),
     "prl": ("paradigm.tasks.prl", "PRLTask"),
     "rdm": ("paradigm.tasks.rdm", "RDMTask"),
+    "marker_test": ("paradigm.tasks.marker_test", "MarkerTestTask"),
 }
 
 
@@ -23,8 +24,8 @@ def apply_practice_overrides(config, task_name: str):
         config.prl.trials_per_block = config.prl.practice_trials_per_block
     elif task_name == "rdm":
         config.rdm.blocks = config.rdm.practice_blocks
-        config.rdm.trials_per_condition = config.rdm.practice_trials_per_condition
-        config.rdm.coherence_levels = list(config.rdm.practice_coherence_levels)
+        config.rdm.trials_per_signed_coherence = config.rdm.practice_trials_per_signed_coherence
+        config.rdm.signed_coherence_levels = list(config.rdm.practice_signed_coherence_levels)
     return config
 
 
@@ -87,7 +88,7 @@ def load_task_class(task_name: str):
 def main() -> None:
     args = parse_args()
 
-    task_name = args.task or prompt_if_missing(None, "任务 (doors/prl/rdm)", "doors")
+    task_name = args.task or prompt_if_missing(None, "任务 (doors/prl/rdm/marker_test)", "doors")
     participant = prompt_if_missing(args.participant, "被试编号", "P001")
     session = prompt_if_missing(args.session, "Session 编号", "S01")
 

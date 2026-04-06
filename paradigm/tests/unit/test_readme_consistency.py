@@ -41,3 +41,9 @@ class ReadmeConsistencyTests(unittest.TestCase):
         self.assertIn("paradigm.tools.normalize_logs", readme)
         self.assertIn("paradigm.tools.viewer.xdf_viewer", readme)
         self.assertIn("paradigm.tools.export.export_bids", readme)
+
+    def test_readme_mentions_log_audit_tooling(self) -> None:
+        readme = Path("README.md").read_text(encoding="utf-8")
+        self.assertIn("log_audit.json", readme)
+        self.assertIn("paradigm.tools.analysis.audit_run_logs", readme)
+        self.assertIn("practice", readme)

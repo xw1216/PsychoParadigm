@@ -20,7 +20,7 @@ def main() -> None:
         raise SystemExit("没有发现可规范化的 run 目录。")
     actual_run_dirs = [path.parent if path.name == "run_metadata.json" else path for path in run_dirs]
     for run_dir in actual_run_dirs:
-        normalize_run_dir(run_dir)
+        normalize_run_dir(run_dir, remove_psychopy_log=False)
         print(f"已规范化: {run_dir}")
 
 

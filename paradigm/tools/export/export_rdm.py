@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from paradigm.data.rdm_export import export_ddm_ready_table, export_psychometric_summary, load_normalized_rdm_rows
+from paradigm.data.rdm_export import export_chronometric_summary, export_ddm_ready_table, export_psychometric_summary, load_normalized_rdm_rows
 
 
 def parse_args() -> argparse.Namespace:
@@ -17,6 +17,7 @@ def main() -> None:
     output_dir = Path(args.output_dir) if args.output_dir else trial_summary_path.parent
     rows = load_normalized_rdm_rows(trial_summary_path)
     export_psychometric_summary(rows, output_dir / "rdm_psychometric_summary.csv")
+    export_chronometric_summary(rows, output_dir / "rdm_chronometric_summary.csv")
     export_ddm_ready_table(rows, output_dir / "rdm_ddm_ready.csv")
 
 

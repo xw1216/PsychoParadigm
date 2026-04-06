@@ -1,6 +1,6 @@
 import importlib
 
-__all__ = ["DoorsTask", "PRLTask", "RDMTask", "ReversalEngine"]
+__all__ = ["DoorsTask", "PRLTask", "RDMTask", "MarkerTestTask", "ReversalEngine"]
 
 
 def __getattr__(name: str):
@@ -10,4 +10,6 @@ def __getattr__(name: str):
         return getattr(importlib.import_module("paradigm.tasks.prl"), name)
     if name == "RDMTask":
         return getattr(importlib.import_module("paradigm.tasks.rdm"), name)
+    if name == "MarkerTestTask":
+        return getattr(importlib.import_module("paradigm.tasks.marker_test"), name)
     raise AttributeError(name)

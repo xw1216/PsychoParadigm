@@ -14,6 +14,7 @@ from paradigm.contracts import build_event_codebook_schema, get_run_summary_sche
 from paradigm.data.logging import EventLogger, TrialLogger, write_metadata
 from paradigm.hardware.eyetracking import EyeTrackerManager
 from paradigm.hardware.markers import MarkerManager
+from paradigm.utils.fonts import choose_text_font
 from paradigm.utils.paths import ensure_directory
 from paradigm.utils.time import timestamp_for_path
 
@@ -45,6 +46,8 @@ class ExperimentSession:
     fixation: Any
     eye_tracker_manager: EyeTrackerManager
     frame_rate_estimate: float | None
+    text_font_request: str
+    text_font_runtime_name: str | None
 
     def window_info(self) -> dict[str, Any]:
         return {
@@ -53,6 +56,8 @@ class ExperimentSession:
             "monitor_name": self.config.screen.monitor_name,
             "units": self.config.screen.units,
             "color": list(self.config.screen.color),
+            "text_font_request": self.text_font_request,
+            "text_font_runtime_name": self.text_font_runtime_name,
         }
 
     def write_metadata_snapshot(
@@ -127,8 +132,12 @@ def create_experiment_session(*, task_name: str, participant: str, session: str,
     )
     frame_rate_estimate = float(frame_rate_result) if frame_rate_result is not None else None
     window.recordFrameIntervals = config.screen.record_frame_intervals
-    default_text = visual.TextStim(win=window, text="", color="white", height=0.04, wrapWidth=1.4)
-    fixation = visual.TextStim(win=window, text="+", color="white", height=0.05)
+    text_font_request, text_font_runtime_name = choose_text_font(
+        preferred_font=config.screen.text_font_name,
+        fallback_fonts=config.screen.text_font_candidates,
+    )
+    default_text = visual.TextStim(win=window, text="", color="white", height=0.04, wrapWidth=1.4, font=text_font_request)
+    fixation = visual.TextStim(win=window, text="+", color="white", height=0.05, font=text_font_request)
     eye_tracker_manager = EyeTrackerManager(config.eye_tracker, config.screen)
     return ExperimentSession(
         task_name=task_name,
@@ -147,4 +156,6 @@ def create_experiment_session(*, task_name: str, participant: str, session: str,
         fixation=fixation,
         eye_tracker_manager=eye_tracker_manager,
         frame_rate_estimate=frame_rate_estimate,
+        text_font_request=text_font_request,
+        text_font_runtime_name=text_font_runtime_name,
     )
