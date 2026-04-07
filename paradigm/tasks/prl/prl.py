@@ -23,7 +23,7 @@ class PRLTask(BaseExperiment):
             stimulus_labels=self.task_config.stimulus_labels,
             rng=self.rng,
         )
-        self.choice_panels = ChoicePanelPair(visual, self.window, left_label="A", right_label="B", text_font=self.text_font)
+        self.choice_panels = ChoicePanelPair(visual, self.window, left_label="←", right_label="→", text_font=self.text_font)
         self.feedback_text = visual.TextStim(self.window, text="", pos=(0, 0), height=0.08, color="white", font=self.text_font)
         self.choice_aois = self.choice_panels.build_aois(left_name="left_option", right_name="right_option")
         self.rl_agent = RescorlaWagnerAgent(
@@ -36,7 +36,7 @@ class PRLTask(BaseExperiment):
         )
 
     def _configure_layout(self, state: PRLTrialState) -> None:
-        self.choice_panels.set_labels(left_label=state.left_stimulus, right_label=state.right_stimulus)
+        self.choice_panels.set_labels(left_label="←", right_label="→")
 
     def _draw_choice_screen(self, selected: str | None = None) -> None:
         self.choice_panels.draw(selected=selected)
@@ -57,7 +57,7 @@ class PRLTask(BaseExperiment):
             self.experiment_clock.reset()
             self.send_marker_now(event_name=self._event("experiment.start"), metadata={"task": self.task_name})
             self.show_message(
-                f"{mode_prefix}概率反转学习任务\n\n请使用左右方向键在固定的 A / B 两个刺激之间做选择。\nA 始终在左侧，B 始终在右侧；屏幕不会提示哪一个刺激当前拥有更高获奖概率。\n当你的选择正确率达到准则后，背后的高概率刺激会在无预警情况下隐藏反转。\n\n按 {self.continue_key_label()} 开始。"
+                f"{mode_prefix}概率反转学习任务\n\n请使用左右方向键在固定的两个刺激之间做选择。\n屏幕只显示左右箭头，不提示哪一个刺激当前拥有更高获奖概率。\n当你的选择正确率达到准则后，背后的高概率刺激会在无预警情况下隐藏反转。\n\n按 {self.continue_key_label()} 开始。"
             )
 
             previous_choice_stimulus = None

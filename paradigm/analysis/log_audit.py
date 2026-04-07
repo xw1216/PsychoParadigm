@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from paradigm.contracts.validation import validate_event_trial_consistency, validate_trial_temporal_consistency
-from paradigm.data.run_io import expand_trial_rows, load_run_payload, read_csv_rows, to_bool
+from paradigm.data.run_io import expand_trial_rows, load_run_payload, read_csv_rows, to_bool, to_float
 from paradigm.utils.time import iso_timestamp
 
 
@@ -334,6 +334,59 @@ def _check_phase_timing(*, task_name: str, metadata: dict[str, Any], trial_rows:
     }
 
 
+def _check_event_clock_alignment(*, task_name: str, metadata: dict[str, Any], event_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    issues: list[dict[str, Any]] = []
+    tolerance_s = _response_tolerance_s(metadata)
+    task_event_rows = [row for row in event_rows if str(row.get("task")) == task_name]
+    clock_offsets = [
+        float(abs_time) - float(task_time)
+        for row in task_event_rows
+        if (abs_time := to_float(row.get("abs_time"))) is not None and (task_time := to_float(row.get("task_time"))) is not None
+    ]
+    reference_offset = statistics.median(clock_offsets) if clock_offsets else None
+
+    for row in task_event_rows:
+        event_index = int(row.get("event_index") or 0)
+        event_key = str(row.get("event_key") or "")
+        abs_time = to_float(row.get("abs_time"))
+        task_time = to_float(row.get("task_time"))
+        flip_time = to_float(row.get("flip_time"))
+
+        if reference_offset is not None and abs_time is not None and task_time is not None:
+            observed_offset = abs_time - task_time
+            if abs(observed_offset - reference_offset) > tolerance_s:
+                issues.append(
+                    {
+                        "event_index": event_index,
+                        "event_key": event_key,
+                        "issue": "abs_task_clock_offset_mismatch",
+                        "observed_offset_s": observed_offset,
+                        "expected_offset_s": reference_offset,
+                        "tolerance_s": tolerance_s,
+                    }
+                )
+
+        if flip_time is not None and flip_time >= 0 and abs_time is not None and abs(flip_time - abs_time) > tolerance_s:
+            issues.append(
+                {
+                    "event_index": event_index,
+                    "event_key": event_key,
+                    "issue": "flip_time_abs_time_mismatch",
+                    "flip_time_s": flip_time,
+                    "abs_time_s": abs_time,
+                    "tolerance_s": tolerance_s,
+                }
+            )
+
+    return {
+        "status": "fail" if issues else "pass",
+        "issue_count": len(issues),
+        "issues": issues[:20],
+        "tolerance_s": tolerance_s,
+        "reference_offset_s": reference_offset,
+    }
+
+
 def _check_frame_intervals(*, run_dir: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     frame_rows = read_csv_rows(run_dir / metadata["config_snapshot"]["data"]["frame_interval_name"])
     intervals = [float(row["interval_s"]) for row in frame_rows if row.get("interval_s") not in (None, "")]
@@ -459,6 +512,7 @@ def audit_run_directory(run_dir: Path | str) -> dict[str, Any]:
             trial_rows=trial_rows,
             events_by_trial=events_by_trial,
         ),
+        "event_clock_alignment": _check_event_clock_alignment(task_name=task_name, metadata=metadata, event_rows=event_rows),
         "phase_timing": _check_phase_timing(task_name=task_name, metadata=metadata, trial_rows=trial_rows),
         "frame_intervals": _check_frame_intervals(run_dir=resolved_run_dir, metadata=metadata),
         "marker_semantics": _check_marker_semantics(

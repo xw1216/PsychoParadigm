@@ -19,6 +19,7 @@ class ChoicePanelStyle:
     selected_line_color: str = "lightgreen"
     label_height: float = 0.06
     label_color: str = "white"
+    label_gap: float = 0.05
     aoi_padding_x: float = 0.02
     aoi_padding_y: float = 0.02
 
@@ -26,6 +27,8 @@ class ChoicePanelStyle:
 class ChoicePanelPair:
     def __init__(self, visual: Any, window: Any, *, left_label: str, right_label: str, text_font: str, style: ChoicePanelStyle | None = None) -> None:
         self.style = style or ChoicePanelStyle()
+        left_label_pos = self._label_pos(self.style.left_pos)
+        right_label_pos = self._label_pos(self.style.right_pos)
         self.left_panel = visual.Rect(
             window,
             width=self.style.width,
@@ -47,7 +50,7 @@ class ChoicePanelPair:
         self.left_text = visual.TextStim(
             window,
             text=left_label,
-            pos=self.style.left_pos,
+            pos=left_label_pos,
             height=self.style.label_height,
             color=self.style.label_color,
             font=text_font,
@@ -55,11 +58,14 @@ class ChoicePanelPair:
         self.right_text = visual.TextStim(
             window,
             text=right_label,
-            pos=self.style.right_pos,
+            pos=right_label_pos,
             height=self.style.label_height,
             color=self.style.label_color,
             font=text_font,
         )
+
+    def _label_pos(self, panel_pos: tuple[float, float]) -> tuple[float, float]:
+        return (panel_pos[0], panel_pos[1] - (self.style.height / 2) - self.style.label_gap)
 
     def set_labels(self, *, left_label: str, right_label: str) -> None:
         self.left_text.text = left_label

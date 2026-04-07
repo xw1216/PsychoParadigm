@@ -78,6 +78,7 @@ data/sub-<participant>/ses-<session>/<task>/<timestamp>/
 
 - `event_log.csv` 是逐事件真源。
 - `trial_summary.csv` 是逐 trial 汇总，阶段时间字段统一使用同一套 global_clock 秒数基准。
+- `event_log.csv` 中 `abs_time` 与 `flip_time` 现在使用同一套 global_clock 秒数基准，适合直接和 `trial_summary.csv` 的阶段时间字段对齐；`task_time` 保持为相对任务开始的秒数。
 - `run_metadata.json` 会记录 `run_summary_schema`、marker backend 状态和配置快照。
 - `log_audit.json` 会对 practice run 自动检查事件完整性、阶段时长、掉帧和 marker 语义。
 
@@ -97,7 +98,7 @@ data/sub-<participant>/ses-<session>/<task>/<timestamp>/
 ## Task Protocols
 
 - `doors`: 每个 block 内强制平衡 gain/loss 反馈序列；trial_summary 会额外记录 `previous_feedback`、`feedback_run_length`、`block_trial_index` 等轻量历史协变量，便于做反馈锁定 QC 与回归分析。
-- `prl`: 使用固定刺激身份 A/B，A 固定左侧、B 固定右侧；奖励遵循 80/20 contingency，只有背后的高概率刺激会在学习准则触发后隐藏反转；trial_summary 会记录 `optimal_choice`、`trial_phase`、`outcome_expectedness`、signed/unsigned prediction error 等分析字段。
+- `prl`: 使用固定刺激身份，但屏幕只显示左右箭头，不显示 A/B；奖励遵循 80/20 contingency，只有背后的高概率刺激会在学习准则触发后隐藏反转；trial_summary 会记录 `optimal_choice`、`trial_phase`、`outcome_expectedness`、signed/unsigned prediction error 等分析字段。
 - `rdm`: 使用 signed coherence 条件，0% premotion phase 与显式 `post_response_blank` 事件；行为汇总按 absolute coherence 聚合，同时保留 psychometric、chronometric 和 DDM-ready 离线表。
 - `marker_test`: 自动等待 LSL 订阅端后，以固定间隔顺序发送 1 到 255 的原始 marker code，用于纯传输链路验证，不需要任何行为按键。
 

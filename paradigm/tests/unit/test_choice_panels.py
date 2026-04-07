@@ -52,12 +52,17 @@ class ChoicePanelsTests(unittest.TestCase):
         self.assertAlmostEqual(right_aoi.right, 0.38)
 
     def test_draw_updates_selected_panel_state(self) -> None:
-        panels = ChoicePanelPair(FakeVisual, object(), left_label="A", right_label="B", text_font="Microsoft YaHei")
+        style = ChoicePanelStyle(height=0.28, label_gap=0.05)
+        panels = ChoicePanelPair(FakeVisual, object(), left_label="←", right_label="→", text_font="Microsoft YaHei", style=style)
 
         panels.draw(selected="left")
 
         self.assertEqual(panels.left_panel.fillColor, panels.style.selected_fill_color)
         self.assertEqual(panels.left_panel.lineColor, panels.style.selected_line_color)
         self.assertEqual(panels.right_panel.fillColor, panels.style.idle_fill_color)
+        self.assertAlmostEqual(panels.left_text.pos[0], panels.style.left_pos[0])
+        self.assertAlmostEqual(panels.left_text.pos[1], panels.style.left_pos[1] - (panels.style.height / 2) - panels.style.label_gap)
+        self.assertAlmostEqual(panels.right_text.pos[0], panels.style.right_pos[0])
+        self.assertAlmostEqual(panels.right_text.pos[1], panels.style.right_pos[1] - (panels.style.height / 2) - panels.style.label_gap)
         self.assertEqual(panels.left_text.draw_count, 1)
         self.assertEqual(panels.right_text.draw_count, 1)

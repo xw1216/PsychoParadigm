@@ -1,5 +1,7 @@
 import unittest
+from unittest.mock import patch
 
+import paradigm.runtime.base_experiment as base_experiment_module
 from paradigm.runtime.base_experiment import BaseExperiment
 from paradigm.hardware.eyetracking import AOIRegion
 from paradigm.hardware.markers import MarkerResult
@@ -14,6 +16,14 @@ class FakeClock:
 
     def getTime(self) -> float:
         return 0.0
+
+
+class FixedClock:
+    def __init__(self, time_value: float) -> None:
+        self.time_value = time_value
+
+    def getTime(self) -> float:
+        return self.time_value
 
 
 class FakeKeyboard:
@@ -62,6 +72,14 @@ class FakeEyeTrackerManager:
         return self.transition
 
 
+class CapturingEventLogger:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def log(self, **kwargs) -> None:
+        self.calls.append(kwargs)
+
+
 class BaseExperimentFlipContractsTests(unittest.TestCase):
     def test_flip_with_marker_sends_marker_on_flip_and_resets_keyboard_clock(self) -> None:
         experiment = BaseExperiment.__new__(BaseExperiment)
@@ -96,3 +114,39 @@ class BaseExperimentFlipContractsTests(unittest.TestCase):
         experiment.log_event = lambda **kwargs: logged.append(kwargs)
         BaseExperiment.poll_and_log_aoi(experiment, aoi_regions=[AOIRegion("left", -1.0, 0.0, -1.0, 1.0)], block=1, trial=1)
         self.assertEqual(logged[0]["event_name"], "doors.aoi.transition")
+
+    def test_log_event_uses_flip_time_on_unified_analysis_clock(self) -> None:
+        experiment = BaseExperiment.__new__(BaseExperiment)
+        experiment.task_name = "doors"
+        experiment.global_clock = FixedClock(5.0)
+        experiment.experiment_clock = FixedClock(2.0)
+        experiment.event_logger = CapturingEventLogger()
+        experiment.resolve_event = lambda event_name: {"event_key": event_name, "event_code": 12}
+
+        marker_result = MarkerResult(code=12, label="doors.choice.onset", local_time=4.25, lsl_sent=True, lpt_sent=False, fnirs_sent=False, payload={})
+
+        with patch.object(base_experiment_module.core, "getTime", return_value=105.0):
+            BaseExperiment.log_event(experiment, event_name="doors.choice.onset", marker_result=marker_result, flip_time=104.0)
+
+        logged = experiment.event_logger.calls[0]
+        self.assertAlmostEqual(logged["abs_time"], 4.0)
+        self.assertAlmostEqual(logged["task_time"], 1.0)
+        self.assertAlmostEqual(logged["flip_time"], 4.0)
+
+    def test_log_event_uses_marker_local_time_when_no_flip_time_exists(self) -> None:
+        experiment = BaseExperiment.__new__(BaseExperiment)
+        experiment.task_name = "doors"
+        experiment.global_clock = FixedClock(5.0)
+        experiment.experiment_clock = FixedClock(2.0)
+        experiment.event_logger = CapturingEventLogger()
+        experiment.resolve_event = lambda event_name: {"event_key": event_name, "event_code": 13}
+
+        marker_result = MarkerResult(code=13, label="doors.response.left", local_time=4.25, lsl_sent=True, lpt_sent=False, fnirs_sent=False, payload={})
+
+        with patch.object(base_experiment_module.core, "getTime", return_value=105.0):
+            BaseExperiment.log_event(experiment, event_name="doors.response.left", marker_result=marker_result, flip_time=None)
+
+        logged = experiment.event_logger.calls[0]
+        self.assertAlmostEqual(logged["abs_time"], 4.25)
+        self.assertAlmostEqual(logged["task_time"], 1.25)
+        self.assertIsNone(logged["flip_time"])

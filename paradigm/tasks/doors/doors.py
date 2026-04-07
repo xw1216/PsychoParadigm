@@ -12,7 +12,7 @@ class DoorsTask(BaseExperiment):
 
         super().__init__(task_name="doors", participant=participant, session=session, config=config)
         self.task_config = self.config.doors
-        self.choice_panels = ChoicePanelPair(visual, self.window, left_label="左", right_label="右", text_font=self.text_font)
+        self.choice_panels = ChoicePanelPair(visual, self.window, left_label="←", right_label="→", text_font=self.text_font)
         self.feedback_text = visual.TextStim(self.window, text="", height=0.08, color="white", font=self.text_font)
         self.choice_aois = self.choice_panels.build_aois(left_name="left_door", right_name="right_door")
         self._trials = build_doors_trials(self.task_config, self.rng)

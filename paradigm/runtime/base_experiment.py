@@ -57,7 +57,6 @@ class BaseExperiment:
         self.text_font = self.services.text_font_request
         self.eye_tracker_manager = self.services.eye_tracker_manager
         self.eye_tracker_status = self.services.eye_tracker_manager.status
-        self._flip_time_global_offset = core.getTime() - self.global_clock.getTime()
         self._write_metadata_snapshot()
 
     def continue_key_name(self) -> str:
@@ -129,25 +128,49 @@ class BaseExperiment:
         extra_metadata: dict[str, Any] | None = None,
     ) -> None:
         resolved = self.resolve_event(event_name)
+        event_abs_time = self._resolve_event_abs_time(marker_result=marker_result, flip_time=flip_time)
         self.event_logger.log(
-            abs_time=self.global_clock.getTime(),
-            task_time=self.experiment_clock.getTime(),
+            abs_time=event_abs_time,
+            task_time=self.global_time_to_task_time(event_abs_time),
             task=self.task_name,
             block=block,
             trial=trial,
             event_key=resolved["event_key"],
             event_code=marker_result.code if marker_result else resolved["event_code"],
-            flip_time=flip_time,
+            flip_time=self.core_time_to_global_time(flip_time),
             lsl_sent=marker_result.lsl_sent if marker_result else None,
             lpt_sent=marker_result.lpt_sent if marker_result else None,
             fnirs_sent=marker_result.fnirs_sent if marker_result else None,
             extra_metadata=extra_metadata,
         )
 
-    def flip_time_to_global_time(self, flip_time: float | None) -> float | None:
-        if flip_time is None or flip_time < 0:
+    def _core_clock_offset(self, clock: Any) -> float:
+        return core.getTime() - clock.getTime()
+
+    def core_time_to_global_time(self, clock_time: float | None) -> float | None:
+        if clock_time is None or clock_time < 0:
             return None
-        return flip_time - self._flip_time_global_offset
+        return clock_time - self._core_clock_offset(self.global_clock)
+
+    def global_time_to_task_time(self, global_time: float | None) -> float | None:
+        if global_time is None or global_time < 0:
+            return None
+        return global_time - (self.global_clock.getTime() - self.experiment_clock.getTime())
+
+    def core_time_to_task_time(self, clock_time: float | None) -> float | None:
+        global_time = self.core_time_to_global_time(clock_time)
+        return self.global_time_to_task_time(global_time)
+
+    def flip_time_to_global_time(self, flip_time: float | None) -> float | None:
+        return self.core_time_to_global_time(flip_time)
+
+    def _resolve_event_abs_time(self, *, marker_result: MarkerResult | None, flip_time: float | None) -> float:
+        flip_abs_time = self.core_time_to_global_time(flip_time)
+        if flip_abs_time is not None:
+            return flip_abs_time
+        if marker_result is not None:
+            return marker_result.local_time
+        return self.global_clock.getTime()
 
     @staticmethod
     def append_marker_result_codes(

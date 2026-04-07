@@ -14,7 +14,7 @@ from paradigm.runtime.base_experiment import BaseExperiment
 
 
 class LogAuditTests(unittest.TestCase):
-    def _write_run_files(self, run_dir: Path, *, mixed_clock: bool, invalid_lpt_codes: bool) -> None:
+    def _write_run_files(self, run_dir: Path, *, mixed_clock: bool, invalid_lpt_codes: bool, mixed_event_clock: bool = False) -> None:
         config_snapshot = copy.deepcopy(DEFAULT_CONFIG.snapshot())
         config_snapshot["practice"]["enabled"] = True
         config_snapshot["fnirs"]["enable_namespace"] = False
@@ -38,15 +38,18 @@ class LogAuditTests(unittest.TestCase):
         event_rows = [
             {"event_index": 1, "iso_time": "2026-04-06T21:00:00.000", "abs_time": 0.00, "task_time": 0.00, "task": "doors", "block": "", "trial": "", "event_key": "doors.experiment.start", "event_code": 25, "flip_time": -1.0, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
             {"event_index": 2, "iso_time": "2026-04-06T21:00:00.010", "abs_time": 0.01, "task_time": 0.01, "task": "doors", "block": 1, "trial": "", "event_key": "doors.block.start", "event_code": 21, "flip_time": -1.0, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
-            {"event_index": 3, "iso_time": "2026-04-06T21:00:00.500", "abs_time": 0.50, "task_time": 0.50, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.fixation.onset", "event_code": 11, "flip_time": 1.20, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
-            {"event_index": 4, "iso_time": "2026-04-06T21:00:01.000", "abs_time": 1.00, "task_time": 1.00, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.choice.onset", "event_code": 12, "flip_time": 1.70, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
+            {"event_index": 3, "iso_time": "2026-04-06T21:00:00.500", "abs_time": 0.50, "task_time": 0.50, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.fixation.onset", "event_code": 11, "flip_time": 0.50, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
+            {"event_index": 4, "iso_time": "2026-04-06T21:00:01.000", "abs_time": 1.00, "task_time": 1.00, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.choice.onset", "event_code": 12, "flip_time": 1.00, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
             {"event_index": 5, "iso_time": "2026-04-06T21:00:01.400", "abs_time": 1.40, "task_time": 1.40, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.response.left", "event_code": 13, "flip_time": -1.0, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
-            {"event_index": 6, "iso_time": "2026-04-06T21:00:01.420", "abs_time": 1.42, "task_time": 1.42, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.post_choice_delay.onset", "event_code": 16, "flip_time": 2.12, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
-            {"event_index": 7, "iso_time": "2026-04-06T21:00:01.920", "abs_time": 1.92, "task_time": 1.92, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.feedback.gain", "event_code": 17, "flip_time": 2.62, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
-            {"event_index": 8, "iso_time": "2026-04-06T21:00:02.920", "abs_time": 2.92, "task_time": 2.92, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.iti.onset", "event_code": 19, "flip_time": 3.62, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
+            {"event_index": 6, "iso_time": "2026-04-06T21:00:01.420", "abs_time": 1.42, "task_time": 1.42, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.post_choice_delay.onset", "event_code": 16, "flip_time": 1.42, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
+            {"event_index": 7, "iso_time": "2026-04-06T21:00:01.920", "abs_time": 1.92, "task_time": 1.92, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.feedback.gain", "event_code": 17, "flip_time": 1.92, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
+            {"event_index": 8, "iso_time": "2026-04-06T21:00:02.920", "abs_time": 2.92, "task_time": 2.92, "task": "doors", "block": 1, "trial": 1, "event_key": "doors.iti.onset", "event_code": 19, "flip_time": 2.92, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
             {"event_index": 9, "iso_time": "2026-04-06T21:00:03.820", "abs_time": 3.82, "task_time": 3.82, "task": "doors", "block": 1, "trial": "", "event_key": "doors.block.end", "event_code": 22, "flip_time": -1.0, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
             {"event_index": 10, "iso_time": "2026-04-06T21:00:03.830", "abs_time": 3.83, "task_time": 3.83, "task": "doors", "block": "", "trial": "", "event_key": "doors.experiment.end", "event_code": 26, "flip_time": -1.0, "lsl_sent": True, "lpt_sent": False, "fnirs_sent": False, "extra_metadata": "{}"},
         ]
+        if mixed_event_clock:
+            event_rows[3]["task_time"] = 0.70
+            event_rows[3]["flip_time"] = 1.70
         with (run_dir / "event_log.csv").open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=EVENT_FIELDS)
             writer.writeheader()
@@ -110,6 +113,15 @@ class LogAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "fail")
         self.assertEqual(report["checks"]["phase_timing"]["status"], "fail")
         self.assertEqual(report["checks"]["marker_semantics"]["status"], "fail")
+
+    def test_audit_run_directory_flags_event_clock_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            run_dir = Path(tmp_dir)
+            self._write_run_files(run_dir, mixed_clock=False, invalid_lpt_codes=False, mixed_event_clock=True)
+            report = audit_run_directory(run_dir)
+
+        self.assertEqual(report["status"], "fail")
+        self.assertEqual(report["checks"]["event_clock_alignment"]["status"], "fail")
 
     def test_finalize_runs_practice_audit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
