@@ -205,7 +205,7 @@ def export_run_to_bids(run_dir: Path, bids_root: Path) -> dict[str, Path]:
             "stimulus_parameters": {"Description": "JSON-serialized stimulus configuration for the trial."},
             "event_keys": {"Description": "Summary-only ordered semantic event_key list for the trial; event_log.csv remains the ground-truth event source."},
             "event_codes": {"Description": "Summary-only ordered LSL event codes observed in the trial; event_log.csv remains the ground-truth event source."},
-            "fnirs_marker_codes": {"Description": "Summary-only fNIRS namespace marker codes when namespace logging is enabled. This reflects a stable naming/logging layer, not a completed vendor-specific hardware adapter."},
+            "fnirs_marker_codes": {"Description": "Optional summary-only fNIRS namespace marker codes derived from task event codes when namespace mapping is enabled. They are not transported over the runtime LSL marker stream."},
             "task_specific_data": {
                 "Description": "JSON-serialized task-specific or analysis-helper fields retained outside the shared trial_summary core columns.",
                 "Fields": get_task_specific_data_fields(task),

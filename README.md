@@ -44,6 +44,7 @@ uv run python main.py doors --participant P001 --session S01 --enable-lpt --lpt-
 - `auto` 会先尝试 Windows `inpout`，失败后回退到 PsychoPy parallel。
 - `inpout` 适合 Windows 实验机上的正式 LPT 输出。
 - `psychopy` 适合已有 parallel 驱动链路的环境。
+- runtime LSL marker 流现在发送单通道 `int32` `event_code`，不再把 JSON/fNIRS namespace 混发到同一条 stream；详细语义仍以 `event_log.csv` / `trial_summary.csv` 为准。
 - runtime 里统一使用 `event_key`、`event_code`、`event_keys`；其中 `event_code` 是单字节硬件 marker code。
 
 禁用 LSL：
@@ -79,6 +80,7 @@ data/sub-<participant>/ses-<session>/<task>/<timestamp>/
 - `event_log.csv` 是逐事件真源。
 - `trial_summary.csv` 是逐 trial 汇总，阶段时间字段统一使用同一套 global_clock 秒数基准。
 - `event_log.csv` 中 `abs_time` 与 `flip_time` 现在使用同一套 global_clock 秒数基准，适合直接和 `trial_summary.csv` 的阶段时间字段对齐；`task_time` 保持为相对任务开始的秒数。
+- `fnirs_marker_codes` 现在仅保留为可选的离线命名空间映射字段，不再通过 runtime LSL marker stream 传输。
 - `run_metadata.json` 会记录 `run_summary_schema`、marker backend 状态和配置快照。
 - `log_audit.json` 会对 practice run 自动检查事件完整性、阶段时长、掉帧和 marker 语义。
 

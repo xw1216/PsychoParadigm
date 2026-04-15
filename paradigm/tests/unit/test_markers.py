@@ -146,13 +146,14 @@ class MarkerManagerTests(unittest.TestCase):
         self.assertEqual(result.label, "choice")
         self.assertEqual(result.payload["task"], "doors")
         self.assertEqual(result.payload["trial"], 3)
+        self.assertEqual(result.payload["fnirs_code"], 4012)
         self.assertFalse(result.lsl_sent)
         self.assertTrue(result.lpt_sent)
         self.assertFalse(result.fnirs_sent)
         status = manager.status_snapshot()
         self.assertTrue(status["fnirs_enabled"])
-        self.assertEqual(status["fnirs_mode"], "lsl_namespace_only")
-        self.assertEqual(status["fnirs_protocol_adapter"], "not_implemented")
+        self.assertEqual(status["fnirs_mode"], "derived_only")
+        self.assertEqual(status["fnirs_protocol_adapter"], "not_transporting")
         self.assertEqual(status["lpt_requested_backend"], "auto")
         self.assertEqual(status["lpt_resolved_backend"], "psychopy")
 
@@ -166,6 +167,27 @@ class MarkerManagerTests(unittest.TestCase):
 
         manager.lsl_backend.outlet = FakeOutlet()
         self.assertTrue(manager.lsl_have_consumers())
+
+    def test_lsl_backend_sends_numeric_marker_codes(self) -> None:
+        config = MarkerConfig(enable_lsl=True)
+        original_outlet = marker_manager_module.StreamOutlet
+
+        class CapturingOutlet:
+            def __init__(self, info) -> None:
+                self.samples: list[list[int]] = []
+
+            def push_sample(self, sample) -> None:
+                self.samples.append(list(sample))
+
+        marker_manager_module.StreamOutlet = CapturingOutlet
+        try:
+            backend = LSLMarkerBackend(config)
+        finally:
+            marker_manager_module.StreamOutlet = original_outlet
+
+        self.assertEqual(backend.status, "ready")
+        self.assertTrue(backend.send(23))
+        self.assertEqual(backend.outlet.samples, [[23]])
 
 
 class LSLBackendFailureTests(unittest.TestCase):

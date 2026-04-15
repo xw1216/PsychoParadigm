@@ -58,7 +58,7 @@ class MarkerConfig:
 
 @dataclass(slots=True)
 class FNIRSConfig:
-    enable_namespace: bool = True
+    enable_namespace: bool = False
     prefix: int = 40
     task_offsets: dict[str, int] = field(
         default_factory=lambda: {
@@ -126,8 +126,8 @@ class DoorsTaskConfig:
 
 @dataclass(slots=True)
 class PRLTaskConfig:
-    blocks: int = 6
-    trials_per_block: int = 24
+    blocks: int = 3
+    trials_per_block: int = 48
     practice_blocks: int = 2
     practice_trials_per_block: int = 10
     fixation_s: float = 0.5
@@ -158,8 +158,8 @@ class PRLTaskConfig:
 
 @dataclass(slots=True)
 class RDMTaskConfig:
-    blocks: int = 5
-    trials_per_signed_coherence: int = 10
+    blocks: int = 4
+    trials_per_signed_coherence: int = 20
 
     fixation_s: float = 0.5
     premotion_s: float = 0.25
@@ -168,7 +168,7 @@ class RDMTaskConfig:
     iti_range_s: tuple[float, float] = (0.8, 1.2)
     feedback_s: float = 0.35
 
-    signed_coherence_levels: list[float] = field(default_factory=lambda: [-0.6, -0.4, -0.2, -0.1, -0.05, 0.05, 0.1, 0.2, 0.4, 0.6])
+    signed_coherence_levels: list[float] = field(default_factory=lambda: [-0.6, -0.4, -0.2, -0.1, 0.1, 0.2, 0.4, 0.6])
     practice_signed_coherence_levels: list[float] = field(default_factory=lambda: [-0.8, -0.6, -0.4, 0.4, 0.6, 0.8])
     response_keys: tuple[str, str] = ("left", "right")
     n_dots: int = 320
