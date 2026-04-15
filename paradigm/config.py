@@ -7,9 +7,9 @@ from paradigm.contracts import get_task_code_map
 
 @dataclass(slots=True)
 class ScreenConfig:
-    size: tuple[int, int] = (1920, 1080)
+    size: tuple[int, int] = (2560, 1440)
     fullscr: bool = True
-    monitor_name: str = "testMonitor"
+    monitor_name: str = "HKC"
     units: str = "height"
     color: tuple[float, float, float] = (-0.85, -0.85, -0.85)
     allow_gui: bool = False
@@ -49,7 +49,7 @@ class MarkerConfig:
 
     enable_lsl: bool = True
     lpt_backend: str = "auto"
-    lpt_address: int = 0x0378
+    lpt_address: int = 0xDFD8
     lpt_driver_dir: str | None = None
     lpt_dll_name: str = "inpoutx64.dll"
     lpt_pulse_width_ms: float = 15.0
@@ -202,10 +202,10 @@ class RDMTaskConfig:
 class MarkerTestTaskConfig:
     start_code: int = 1
     end_code: int = 255
-    interval_s: float = 0.5
-    consumer_settle_s: float = 0.5
+    interval_s: float = 0.1
+    consumer_settle_s: float = 0.1
     auto_continue_unobservable_s: float = 2.0
-    completion_hold_s: float = 1.0
+    completion_hold_s: float = 0.2
 
 
 @dataclass(slots=True)
