@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -11,7 +10,7 @@ from paradigm.hardware.markers.lsl_config import ensure_lsl_environment
 
 ensure_lsl_environment(MarkerConfig())
 
-from pylsl import StreamInfo, StreamOutlet, cf_string
+from pylsl import StreamInfo, StreamOutlet, cf_int32
 from paradigm.hardware.markers.backends import LPTBackendProtocol, build_lpt_backend
 
 
@@ -51,11 +50,12 @@ class LSLMarkerBackend:
                 type=config.lsl_stream_type,
                 channel_count=1,
                 nominal_srate=0,
-                channel_format=cf_string,
+                channel_format=cf_int32,
                 source_id=config.lsl_source_id,
             )
             descriptor = info.desc()
-            descriptor.append_child_value("format", "json")
+            descriptor.append_child_value("format", "int32")
+            descriptor.append_child_value("value_field", "event_code")
             descriptor.append_child_value("producer", "psychopy-lib")
             self.outlet = StreamOutlet(info)
             self.status = "ready"
@@ -63,10 +63,10 @@ class LSLMarkerBackend:
             self.outlet = None
             self.status = f"error:{exc.__class__.__name__}"
 
-    def send(self, payload: dict[str, Any]) -> bool:
+    def send(self, code: int) -> bool:
         if self.outlet is None:
             return False
-        self.outlet.push_sample([json.dumps(payload, ensure_ascii=True, sort_keys=True)])
+        self.outlet.push_sample([int(code)])
         return True
 
     def have_consumers(self) -> bool | None:
@@ -130,8 +130,8 @@ class MarkerManager:
             "lsl_stream_type": self.config.lsl_stream_type,
             "lsl_api_config": self.lsl_backend.config_path,
             "fnirs_enabled": fnirs_enabled,
-            "fnirs_mode": "lsl_namespace_only" if fnirs_enabled else "disabled",
-            "fnirs_protocol_adapter": "not_implemented" if fnirs_enabled else "not_configured",
+            "fnirs_mode": "derived_only" if fnirs_enabled else "disabled",
+            "fnirs_protocol_adapter": "not_transporting" if fnirs_enabled else "not_configured",
         }
 
     def _build_payload(self, code: int, label: str | None, metadata: dict[str, Any] | None) -> tuple[float, dict[str, Any]]:
@@ -147,15 +147,11 @@ class MarkerManager:
 
     def send(self, code: int, label: str | None = None, metadata: dict[str, Any] | None = None) -> MarkerResult:
         local_time, payload = self._build_payload(code=code, label=label, metadata=metadata)
-        lsl_sent = self.lsl_backend.send(payload)
+        lsl_sent = self.lsl_backend.send(int(code))
         lpt_sent = self.lpt_backend.send(int(code))
         fnirs_code = self._fnirs_code(int(code))
         fnirs_sent = False
         if fnirs_code is not None:
-            fnirs_payload = dict(payload)
-            fnirs_payload["fnirs_code"] = fnirs_code
-            fnirs_payload["signal_namespace"] = "fnirs"
-            fnirs_sent = self.lsl_backend.send(fnirs_payload)
             payload["fnirs_code"] = fnirs_code
         return MarkerResult(
             code=int(code),
